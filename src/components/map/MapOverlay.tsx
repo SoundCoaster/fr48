@@ -90,7 +90,7 @@ function MainMenu() {
   );
 }
 
-const VIEW_ORDER: MapStyle[] = ["fr24", "satellite", "dark", "light", "voyager"];
+const VIEW_ORDER: MapStyle[] = ["voyager", "fr24", "light", "dark", "satellite"];
 
 function ViewPicker() {
   const [open, setOpen] = useState(false);

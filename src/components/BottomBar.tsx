@@ -83,9 +83,9 @@ function PanelHeader({ title, extra }: { title: string; extra?: ReactNode }) {
 }
 
 const STYLE_OPTIONS: { id: MapStyle; label: string; swatch: string }[] = [
-  { id: "fr24", label: "Map", swatch: "linear-gradient(135deg,#3d4a3c 50%,#26343e 50%)" },
+  { id: "voyager", label: "Map", swatch: "linear-gradient(135deg,#f7f1e3 50%,#a9cfe0 50%)" },
+  { id: "fr24", label: "Terrain", swatch: "linear-gradient(135deg,#3d4a3c 50%,#26343e 50%)" },
   { id: "light", label: "Light", swatch: "linear-gradient(135deg,#f4f4f2 50%,#d5dde4 50%)" },
-  { id: "voyager", label: "Voyager", swatch: "linear-gradient(135deg,#f7f1e3 50%,#a9cfe0 50%)" },
   { id: "dark", label: "Dark", swatch: "linear-gradient(135deg,#2c2c2c 50%,#151515 50%)" },
   { id: "satellite", label: "Satellite", swatch: "linear-gradient(135deg,#3f5a32 50%,#1d3a5a 50%)" },
 ];

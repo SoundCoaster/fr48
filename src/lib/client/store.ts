@@ -37,7 +37,7 @@ export interface Filters {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  mapStyle: "fr24",
+  mapStyle: "voyager",
   labels: false,
   airports: true,
   iconSize: 1,
@@ -103,6 +103,14 @@ function hydrate() {
   hydrated = true;
   const settings = load("fr48:settings", DEFAULT_SETTINGS);
   settings.widgets = { ...DEFAULT_SETTINGS.widgets, ...settings.widgets };
+  // One-time move off the former relief/satellite default
+  try {
+    if (!localStorage.getItem("fr48:map-v2")) {
+      if (settings.mapStyle === "fr24") settings.mapStyle = "voyager";
+      localStorage.setItem("fr48:map-v2", "1");
+      localStorage.setItem("fr48:settings", JSON.stringify(settings));
+    }
+  } catch {}
   let bookmarks: Bookmark[] = [];
   try {
     bookmarks = JSON.parse(localStorage.getItem("fr48:bookmarks") || "[]");

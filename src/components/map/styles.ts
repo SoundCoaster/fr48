@@ -164,11 +164,11 @@ export const STYLES: Record<MapStyle, string | StyleSpecification> = {
 };
 
 export const STYLE_LABELS: Record<MapStyle, string> = {
-  fr24: "Map",
+  voyager: "Map",
+  fr24: "Terrain",
   satellite: "Satellite",
   dark: "Dark",
   light: "Light",
-  voyager: "Voyager",
 };
 
 export const isDarkStyle = (s: MapStyle) => s !== "light" && s !== "voyager";
