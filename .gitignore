@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+public/maplibre-gl-worker.mjs
+
+# Cloudflare / OpenNext
+.open-next
+.wrangler
+.dev.vars*
+.DS_Store

@@ -1,26 +1,118 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --fr-yellow: #fdc307;
+  --fr-yellow-dark: #e0ab00;
+  --fr-bg: #1b1c1e;
+  --fr-panel: #232427;
+  --fr-panel-2: #2c2d31;
+  --fr-line: #3a3b40;
+  --fr-text: #f3f4f6;
+  --fr-muted: #9ea3ab;
+  --fr-green: #3fbf6f;
+  --fr-red: #ff4d3d;
+  --fr-blue: #3d9be9;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-fr-yellow: var(--fr-yellow);
+  --color-fr-yellow-dark: var(--fr-yellow-dark);
+  --color-fr-bg: var(--fr-bg);
+  --color-fr-panel: var(--fr-panel);
+  --color-fr-panel-2: var(--fr-panel-2);
+  --color-fr-line: var(--fr-line);
+  --color-fr-text: var(--fr-text);
+  --color-fr-muted: var(--fr-muted);
+  --color-fr-green: var(--fr-green);
+  --color-fr-red: var(--fr-red);
+  --color-fr-blue: var(--fr-blue);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+html,
+body {
+  background: var(--fr-bg);
+  color: var(--fr-text);
+  font-family: var(--font-sans);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Thin dark scrollbars inside panels */
+.fr-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #4a4b52 transparent;
+}
+
+/* MapLibre tweaks */
+.maplibregl-ctrl-attrib {
+  font-size: 10px;
+}
+.maplibregl-ctrl-bottom-right {
+  bottom: 56px;
+}
+.maplibregl-ctrl-bottom-left {
+  bottom: 56px;
+}
+
+.fr-tooltip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+  z-index: 5;
+  background: rgba(27, 28, 30, 0.94);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.25;
+  padding: 5px 8px;
+  border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+}
+.fr-tooltip b {
+  font-weight: 700;
+}
+.fr-tooltip span {
+  color: var(--fr-yellow);
+  font-weight: 600;
+  margin-left: 4px;
+}
+.fr-tooltip em {
+  display: block;
+  font-style: normal;
+  color: #b8bdc4;
+  font-size: 11px;
+}
+
+@keyframes fr-slide-in {
+  from {
+    transform: translateX(-16px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
   }
 }
+.fr-slide-in {
+  animation: fr-slide-in 0.22s ease-out;
+}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes fr-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.fr-live-dot {
+  animation: fr-pulse 1.6s ease-in-out infinite;
 }

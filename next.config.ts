@@ -1,10 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Cache Components / partial prerendering are not yet reliable on
+  // @opennextjs/cloudflare (pages hang in workerd). All live data is fetched
+  // client-side, so classic rendering is all we need.
+  cacheComponents: false,
   turbopack: {
+    root: __dirname,
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],
@@ -12,6 +14,7 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  images: { unoptimized: true },
 };
 
 export default nextConfig;
