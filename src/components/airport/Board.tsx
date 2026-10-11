@@ -5,7 +5,7 @@ import { AirlineLogo } from "@/components/ui/AirlineLogo";
 import { fmtTime } from "@/lib/format";
 import type { BoardEntry } from "@/lib/types";
 
-function statusText(e: BoardEntry, kind: "arr" | "dep", tz: string | null): { text: string; tone: string } {
+export function statusText(e: BoardEntry, kind: "arr" | "dep", tz: string | null): { text: string; tone: string } {
   if (kind === "arr") {
     if (e.actual || e.status === "landed") return { text: `Landed ${fmtTime(e.actual, tz)}`, tone: "text-fr-green" };
     if (!e.online) return { text: "Scheduled", tone: "text-fr-muted" };

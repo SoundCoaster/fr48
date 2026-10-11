@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 import type { FlightsResponse } from "../types";
 
-export type MapStyle = "light" | "dark" | "voyager" | "satellite";
+export type MapStyle = "fr24" | "light" | "dark" | "voyager" | "satellite";
 
 export interface Settings {
   mapStyle: MapStyle;
@@ -14,6 +14,15 @@ export interface Settings {
   speedUnit: "kt" | "kmh" | "mph";
   distanceUnit: "nm" | "km" | "mi";
   timeZone: "utc" | "local";
+  weather: boolean;
+  widgets: { tracked: boolean; airports: boolean; bookmarks: boolean };
+}
+
+export interface Bookmark {
+  kind: "flight" | "airport";
+  id: string;
+  label: string;
+  sub?: string;
 }
 
 export interface Filters {
@@ -27,7 +36,7 @@ export interface Filters {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  mapStyle: "light",
+  mapStyle: "fr24",
   labels: false,
   airports: true,
   iconSize: 1,
@@ -35,6 +44,8 @@ export const DEFAULT_SETTINGS: Settings = {
   speedUnit: "kt",
   distanceUnit: "nm",
   timeZone: "utc",
+  weather: false,
+  widgets: { tracked: true, airports: true, bookmarks: true },
 };
 
 export const DEFAULT_FILTERS: Filters = {
@@ -56,6 +67,7 @@ interface State {
   filters: Filters;
   follow: boolean;
   panel: null | "settings" | "filters" | "widgets";
+  bookmarks: Bookmark[];
 }
 
 const load = <T,>(key: string, fallback: T): T => {
@@ -76,6 +88,7 @@ let state: State = {
   filters: DEFAULT_FILTERS,
   follow: false,
   panel: null,
+  bookmarks: [],
 };
 let hydrated = false;
 const listeners = new Set<() => void>();
@@ -83,7 +96,13 @@ const listeners = new Set<() => void>();
 function hydrate() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
-  state = { ...state, settings: load("fr48:settings", DEFAULT_SETTINGS), filters: load("fr48:filters", DEFAULT_FILTERS) };
+  const settings = load("fr48:settings", DEFAULT_SETTINGS);
+  settings.widgets = { ...DEFAULT_SETTINGS.widgets, ...settings.widgets };
+  let bookmarks: Bookmark[] = [];
+  try {
+    bookmarks = JSON.parse(localStorage.getItem("fr48:bookmarks") || "[]");
+  } catch {}
+  state = { ...state, settings, filters: load("fr48:filters", DEFAULT_FILTERS), bookmarks };
 }
 
 export function getState(): State {
@@ -98,6 +117,7 @@ export function setState(patch: Partial<State> | ((s: State) => Partial<State>))
   try {
     if (p.settings) localStorage.setItem("fr48:settings", JSON.stringify(state.settings));
     if (p.filters) localStorage.setItem("fr48:filters", JSON.stringify(state.filters));
+    if (p.bookmarks) localStorage.setItem("fr48:bookmarks", JSON.stringify(state.bookmarks));
   } catch {
     // storage unavailable
   }
@@ -116,6 +136,13 @@ export function useStore<T>(select: (s: State) => T): T {
 
 export const updateSettings = (p: Partial<Settings>) => setState((s) => ({ settings: { ...s.settings, ...p } }));
 export const updateFilters = (p: Partial<Filters>) => setState((s) => ({ filters: { ...s.filters, ...p } }));
+
+export function toggleBookmark(b: Bookmark) {
+  setState((s) => {
+    const exists = s.bookmarks.some((x) => x.kind === b.kind && x.id === b.id);
+    return { bookmarks: exists ? s.bookmarks.filter((x) => !(x.kind === b.kind && x.id === b.id)) : [...s.bookmarks, b] };
+  });
+}
 
 export function activeFilterCount(f: Filters): number {
   let n = 0;

@@ -132,7 +132,52 @@ function derive(tr: Track, now: number): Derived {
 
 // ---- Live map rows --------------------------------------------------------
 
-export function flightRows(store: TrafficStore): FlightsResponse {
+const endpoint = (a: Airport | null) => (a ? { city: a.city || a.name, code: a.iata || a.icao } : null);
+
+function trackedFlights(store: TrafficStore, viewers: Map<string, number>): FlightsResponse["tracked"] {
+  return [...viewers]
+    .filter(([cs]) => store.byCallsign.has(cs))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([cs, n]) => {
+      const tr = store.byCallsign.get(cs)!;
+      return {
+        callsign: cs,
+        flightNumber: flightNumber(cs, airlineFromCallsign(cs, tr.fp?.remarks)),
+        type: tr.fp?.aircraft_short || "",
+        viewers: n,
+        origin: endpoint(airport(tr.fp?.departure)),
+        destination: endpoint(airport(tr.fp?.arrival)),
+      };
+    });
+}
+
+function busiestAirports(store: TrafficStore): FlightsResponse["busiest"] {
+  const counts = new Map<string, [number, number]>();
+  for (const tr of store.byCallsign.values()) {
+    if (!tr.fp) continue;
+    // Only count flights still to arrive / depart
+    if (tr.fp.arrival && tr.landedAt === null) {
+      const c = counts.get(tr.fp.arrival) ?? [0, 0];
+      c[0]++;
+      counts.set(tr.fp.arrival, c);
+    }
+    if (tr.fp.departure && tr.takeoffAt === null && tr.onGround) {
+      const c = counts.get(tr.fp.departure) ?? [0, 0];
+      c[1]++;
+      counts.set(tr.fp.departure, c);
+    }
+  }
+  return [...counts]
+    .sort((a, b) => b[1][0] + b[1][1] - (a[1][0] + a[1][1]))
+    .slice(0, 5)
+    .flatMap(([icao, [arrivals, departures]]) => {
+      const a = airport(icao);
+      return a ? [{ icao: a.icao, iata: a.iata, city: a.city || a.name, arrivals, departures }] : [];
+    });
+}
+
+export function flightRows(store: TrafficStore, viewers: Map<string, number> = new Map()): FlightsResponse {
   const flights: FlightRow[] = [];
   for (const tr of store.byCallsign.values()) {
     const fp = tr.fp;
@@ -159,6 +204,8 @@ export function flightRows(store: TrafficStore): FlightsResponse {
     serverTime: Date.now(),
     stats: store.stats,
     flights,
+    tracked: trackedFlights(store, viewers),
+    busiest: busiestAirports(store),
   };
 }
 
@@ -337,8 +384,8 @@ export function airportDetail(store: TrafficStore, code: string): AirportDetail 
 
 // ---- Airports layer -------------------------------------------------------
 
-/** [icao, iata, name, lat, lon, size, arrivals, departures] */
-export type AirportRow = [string, string, string, number, number, number, number, number];
+/** [icao, iata, name, lat, lon, size, arrivals, departures, countryCode] */
+export type AirportRow = [string, string, string, number, number, number, number, number, string];
 
 export function airportRows(store: TrafficStore): AirportRow[] {
   const traffic = new Map<string, [number, number]>();
@@ -355,7 +402,7 @@ export function airportRows(store: TrafficStore): AirportRow[] {
   for (const a of allAirports()) {
     const t = traffic.get(a.icao);
     if (a.size < 3 && !t) continue;
-    rows.push([a.icao, a.iata, a.name, a.lat, a.lon, a.size, t?.[0] ?? 0, t?.[1] ?? 0]);
+    rows.push([a.icao, a.iata, a.name, a.lat, a.lon, a.size, t?.[0] ?? 0, t?.[1] ?? 0, a.countryCode]);
   }
   return rows;
 }

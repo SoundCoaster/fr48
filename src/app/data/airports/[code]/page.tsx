@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AirportPage } from "@/components/data/AirportPage";
-import { airport } from "@/lib/refdata";
+import { traffic } from "@/lib/traffic";
+import type { AirportDetail } from "@/lib/types";
 
 export async function generateMetadata({ params }: PageProps<"/data/airports/[code]">): Promise<Metadata> {
   const { code } = await params;
-  const a = airport(code);
-  if (!a) return { title: "Airport not found" };
+  const body = await traffic().airport(code.toUpperCase());
+  if (!body) return { title: "Airport not found" };
+  const a = (JSON.parse(body) as AirportDetail).airport;
   const label = a.iata || a.icao;
   return {
     title: `${a.name} (${label}) Arrivals, Departures & ATC`,

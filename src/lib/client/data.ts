@@ -95,6 +95,6 @@ export const useFlightDetail = (callsign: string | null) =>
 export const useAirportDetail = (code: string | null) =>
   usePolled<AirportDetail>(code ? `/api/airports/${encodeURIComponent(code)}` : null, 30000);
 
-/** [icao, iata, name, lat, lon, size, arrivals, departures] */
-export type AirportRow = [string, string, string, number, number, number, number, number];
+/** [icao, iata, name, lat, lon, size, arrivals, departures, countryCode] */
+export type AirportRow = [string, string, string, number, number, number, number, number, string];
 export const useAirportRows = () => usePolled<AirportRow[]>("/api/airports", 120000);

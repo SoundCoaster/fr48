@@ -125,6 +125,27 @@ export interface FlightsResponse {
   serverTime: number;
   stats: { pilots: number; controllers: number; users: number };
   flights: FlightRow[];
+  /** Flights with the most Flightradar48 viewers right now. */
+  tracked: TrackedFlight[];
+  /** Airports with the most connected traffic. */
+  busiest: BusyAirport[];
+}
+
+export interface TrackedFlight {
+  callsign: string;
+  flightNumber: string | null;
+  type: string;
+  viewers: number;
+  origin: { city: string; code: string } | null;
+  destination: { city: string; code: string } | null;
+}
+
+export interface BusyAirport {
+  icao: string;
+  iata: string;
+  city: string;
+  arrivals: number;
+  departures: number;
 }
 
 export type FlightStatus = "scheduled" | "taxiing" | "departed" | "enroute" | "approach" | "landed" | "unknown";

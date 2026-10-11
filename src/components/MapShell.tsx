@@ -5,7 +5,9 @@ import { useParams } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { useLiveFlights } from "@/lib/client/data";
 import { BottomBar } from "./BottomBar";
-import { TopBar } from "./TopBar";
+import { MapControls } from "./map/MapControls";
+import { MapOverlay } from "./map/MapOverlay";
+import { WidgetsColumn } from "./widgets/WidgetsColumn";
 
 const LiveMap = dynamic(() => import("./map/LiveMap"), {
   ssr: false,
@@ -24,14 +26,18 @@ export function MapShell({ children }: { children: ReactNode }) {
   useLiveFlights();
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden">
-      <TopBar />
-      <main className="relative flex-1 overflow-hidden">
+    <div className="h-dvh overflow-hidden">
+      <main className="relative h-full overflow-hidden">
         <Suspense fallback={<div className="absolute inset-0 bg-[#e9edf0]" />}>
           <SelectedMap />
         </Suspense>
         <div className="pointer-events-none absolute inset-0">
+          <MapOverlay />
+          <Suspense>
+            <WidgetsColumn />
+          </Suspense>
           {children}
+          <MapControls />
           <BottomBar />
         </div>
       </main>

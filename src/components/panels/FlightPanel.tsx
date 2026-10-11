@@ -1,13 +1,13 @@
 "use client";
 
-import { ChevronDown, Crosshair, Link2, Loader2, X } from "lucide-react";
+import { ChevronDown, Crosshair, Link2, Loader2, Star, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState, type ReactNode } from "react";
 import { AircraftIcon } from "@/components/ui/AircraftIcon";
 import { AirlineLogo } from "@/components/ui/AirlineLogo";
 import { useFlightDetail } from "@/lib/client/data";
-import { setState, useStore } from "@/lib/client/store";
+import { setState, toggleBookmark, useStore } from "@/lib/client/store";
 import { useNow } from "@/lib/client/useNow";
 import {
   fmtAltitude,
@@ -35,7 +35,7 @@ export function FlightPanel({ params }: { params: Promise<{ callsign: string }> 
   }, [detail]);
 
   return (
-    <aside className="fr-slide-in pointer-events-auto absolute bottom-[64px] left-0 top-0 z-20 flex w-full flex-col overflow-hidden bg-fr-panel shadow-2xl sm:bottom-auto sm:left-3 sm:top-3 sm:max-h-[calc(100%-80px)] sm:w-[372px] sm:rounded-xl">
+    <aside className="fr-slide-in pointer-events-auto absolute bottom-[104px] left-0 top-0 z-30 flex w-full flex-col overflow-hidden bg-fr-panel shadow-2xl sm:bottom-auto sm:left-3 sm:top-3 sm:max-h-[calc(100%-124px)] sm:w-[372px] sm:rounded-xl">
       {!detail ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-sm text-fr-muted">
           {loading && !error ? (
@@ -61,6 +61,7 @@ export function FlightPanel({ params }: { params: Promise<{ callsign: string }> 
 function FlightContent({ detail: d, onClose }: { detail: FlightDetail; onClose: () => void }) {
   const settings = useStore((s) => s.settings);
   const follow = useStore((s) => s.follow);
+  const starred = useStore((s) => s.bookmarks.some((b) => b.kind === "flight" && b.id === d.callsign));
   const [copied, setCopied] = useState(false);
   const now = useNow(5000) ?? d.times.actualDeparture ?? 0;
 
@@ -82,18 +83,34 @@ function FlightContent({ detail: d, onClose }: { detail: FlightDetail; onClose: 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <h1 className="text-[22px] font-bold leading-tight tracking-tight text-fr-yellow">{d.flightNumber ?? d.callsign}</h1>
-            {d.flightNumber && <span className="text-sm font-medium text-fr-muted">{d.callsign}</span>}
-            {d.aircraft.code && (
-              <span className="rounded bg-white/10 px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-white/90">{d.aircraft.code}</span>
-            )}
+            {d.flightNumber && <span className="truncate text-sm font-medium text-fr-muted">{d.callsign}</span>}
           </div>
-          <div className="truncate text-[13px] text-fr-muted">{d.airline?.name ?? (d.flightPlan?.flight_rules === "V" ? "VFR flight" : "Private / Unknown operator")}</div>
+          <div className="flex items-center gap-2 text-[13px] text-fr-muted">
+            {d.aircraft.code && (
+              <span className="shrink-0 rounded bg-[#2f6aa3] px-1.5 py-px text-[11px] font-bold tracking-wide text-white">{d.aircraft.code}</span>
+            )}
+            <span className="truncate">{d.airline?.name ?? (d.flightPlan?.flight_rules === "V" ? "VFR flight" : "Private / Unknown operator")}</span>
+          </div>
         </div>
         {d.airline && (
-          <span className="mt-0.5 flex h-8 items-center rounded-md bg-white px-1.5">
-            <AirlineLogo airline={d.airline} height={22} className="max-w-[88px]" />
+          <span className="mt-0.5 flex h-8 shrink-0 items-center rounded-md bg-white px-1.5">
+            <AirlineLogo airline={d.airline} height={22} className="max-w-[80px]" />
           </span>
         )}
+        <button
+          onClick={() =>
+            toggleBookmark({
+              kind: "flight",
+              id: d.callsign,
+              label: d.flightNumber ? `${d.flightNumber} · ${d.callsign}` : d.callsign,
+              sub: [d.origin?.iata || d.flightPlan?.departure, d.destination?.iata || d.flightPlan?.arrival].filter(Boolean).join(" → "),
+            })
+          }
+          className={`rounded-full p-1.5 hover:bg-white/10 ${starred ? "text-fr-yellow" : "text-fr-muted hover:text-white"}`}
+          aria-label={starred ? "Remove bookmark" : "Bookmark this flight"}
+        >
+          <Star size={18} fill={starred ? "currentColor" : "none"} />
+        </button>
         <button onClick={onClose} className="-mr-1 rounded-full p-1.5 text-fr-muted hover:bg-white/10 hover:text-white" aria-label="Close">
           <X size={18} />
         </button>

@@ -11,7 +11,7 @@ type Item =
   | { kind: "airport"; key: string; data: SearchResults["airports"][number] }
   | { kind: "airline"; key: string; data: SearchResults["airlines"][number] };
 
-export function Search({ className = "" }: { className?: string }) {
+export function Search({ className = "", variant = "dark" }: { className?: string; variant?: "dark" | "light" }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -161,8 +161,14 @@ export function Search({ className = "" }: { className?: string }) {
 
   return (
     <div ref={box} className={`relative ${className}`}>
-      <div className="flex h-9 items-center gap-2 rounded-full bg-white/[0.08] px-3.5 ring-1 ring-white/5 transition focus-within:bg-white/[0.12] focus-within:ring-fr-yellow/60">
-        <SearchIcon size={16} className="shrink-0 text-fr-muted" />
+      <div
+        className={
+          variant === "light"
+            ? "flex h-11 items-center gap-3 rounded-lg bg-white px-3.5 shadow-lg ring-2 ring-transparent transition focus-within:ring-fr-yellow"
+            : "flex h-9 items-center gap-2 rounded-full bg-white/[0.08] px-3.5 ring-1 ring-white/5 transition focus-within:bg-white/[0.12] focus-within:ring-fr-yellow/60"
+        }
+      >
+        <SearchIcon size={variant === "light" ? 20 : 16} className={`shrink-0 ${variant === "light" ? "text-[#8a8d93]" : "text-fr-muted"}`} />
         <input
           ref={input}
           value={q}
@@ -173,7 +179,9 @@ export function Search({ className = "" }: { className?: string }) {
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
           placeholder="Find flights, airports and more"
-          className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-fr-muted"
+          className={`min-w-0 flex-1 bg-transparent outline-none ${
+            variant === "light" ? "text-[17px] text-[#1b1c1e] placeholder:text-[#8a8d93]" : "text-sm text-white placeholder:text-fr-muted"
+          }`}
           spellCheck={false}
           autoComplete="off"
         />
@@ -183,9 +191,12 @@ export function Search({ className = "" }: { className?: string }) {
             <X size={14} />
           </button>
         )}
+        {!q && variant === "light" && (
+          <kbd className="grid h-6 w-6 place-items-center rounded border border-[#9a9da3] font-sans text-[13px] text-[#8a8d93]">/</kbd>
+        )}
       </div>
       {showDropdown && (
-        <div className="fr-scroll absolute left-0 right-0 top-11 z-50 max-h-[70vh] overflow-y-auto rounded-xl bg-fr-panel py-1 shadow-2xl ring-1 ring-white/10 sm:min-w-[380px]">
+        <div className="fr-scroll absolute left-0 right-0 top-[calc(100%+6px)] z-50 max-h-[70vh] overflow-y-auto rounded-xl bg-fr-panel py-1 shadow-2xl ring-1 ring-white/10 sm:min-w-[380px]">
           {items.length === 0 && !loading && <div className="px-4 py-6 text-center text-sm text-fr-muted">No results for “{q}”</div>}
           {section("Live flights", "flight")}
           {section("Airports", "airport")}

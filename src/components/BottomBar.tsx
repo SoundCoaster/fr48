@@ -1,8 +1,7 @@
 "use client";
 
-import { Filter, LayoutGrid, LocateFixed, Minus, Plus, Settings, X } from "lucide-react";
+import { CloudSunRain, Filter, LayoutPanelLeft, Settings, X } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
-import { mapInstance } from "@/components/map/instance";
 import {
   activeFilterCount,
   DEFAULT_FILTERS,
@@ -18,47 +17,35 @@ export function BottomBar() {
   const panel = useStore((s) => s.panel);
   const filters = useStore((s) => s.filters);
   const nFilters = activeFilterCount(filters);
+  const weather = useStore((s) => s.settings.weather);
   const toggle = (p: NonNullable<typeof panel>) => setState({ panel: panel === p ? null : p });
 
   return (
     <>
       {panel && (
-        <div className="fr-scroll pointer-events-auto absolute bottom-[64px] left-1/2 z-30 max-h-[calc(100%-140px)] w-[min(420px,calc(100%-24px))] -translate-x-1/2 overflow-y-auto rounded-xl bg-fr-panel shadow-2xl ring-1 ring-white/10">
+        <div className="fr-scroll pointer-events-auto absolute bottom-[104px] left-1/2 z-30 max-h-[calc(100%-180px)] w-[min(420px,calc(100%-24px))] -translate-x-1/2 overflow-y-auto rounded-xl bg-fr-panel shadow-2xl ring-1 ring-white/10">
           {panel === "settings" && <SettingsPanel />}
           {panel === "filters" && <FiltersPanel />}
           {panel === "widgets" && <WidgetsPanel />}
         </div>
       )}
 
-      <div className="pointer-events-auto absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-stretch overflow-hidden rounded-xl bg-fr-bg/95 shadow-xl ring-1 ring-white/10 backdrop-blur">
-        <BarButton icon={<Settings size={18} />} label="Settings" active={panel === "settings"} onClick={() => toggle("settings")} />
+      <div className="pointer-events-auto absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-stretch gap-1 rounded-2xl bg-[#3a3b3e]/90 px-3 py-2 shadow-2xl backdrop-blur">
+        <BarButton icon={<Settings size={34} strokeWidth={1.5} />} label="Settings" active={panel === "settings"} onClick={() => toggle("settings")} />
         <BarButton
-          icon={<Filter size={18} />}
+          icon={<CloudSunRain size={34} strokeWidth={1.5} />}
+          label="Weather"
+          active={weather}
+          onClick={() => updateSettings({ weather: !weather })}
+        />
+        <BarButton
+          icon={<Filter size={34} strokeWidth={1.5} />}
           label="Filters"
           active={panel === "filters"}
           onClick={() => toggle("filters")}
           badge={nFilters || undefined}
         />
-        <BarButton icon={<LayoutGrid size={18} />} label="Widgets" active={panel === "widgets"} onClick={() => toggle("widgets")} />
-      </div>
-
-      <div className="pointer-events-auto absolute bottom-3 right-3 z-30 flex flex-col overflow-hidden rounded-xl bg-fr-bg/95 shadow-xl ring-1 ring-white/10">
-        <MapButton label="Zoom in" onClick={() => mapInstance.current?.zoomIn()}>
-          <Plus size={18} />
-        </MapButton>
-        <MapButton label="Zoom out" onClick={() => mapInstance.current?.zoomOut()}>
-          <Minus size={18} />
-        </MapButton>
-        <MapButton
-          label="My location"
-          onClick={() =>
-            navigator.geolocation?.getCurrentPosition((p) =>
-              mapInstance.current?.flyTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 8 }),
-            )
-          }
-        >
-          <LocateFixed size={18} />
-        </MapButton>
+        <BarButton icon={<LayoutPanelLeft size={34} strokeWidth={1.5} />} label="Widgets" active={panel === "widgets"} onClick={() => toggle("widgets")} />
       </div>
     </>
   );
@@ -68,23 +55,15 @@ function BarButton({ icon, label, onClick, active, badge }: { icon: ReactNode; l
   return (
     <button
       onClick={onClick}
-      className={`relative flex min-w-[72px] flex-col items-center gap-0.5 px-3 py-2 text-[11px] font-medium transition ${
-        active ? "bg-fr-yellow text-black" : "text-white/85 hover:bg-white/10"
+      className={`relative flex min-w-[96px] flex-col items-center gap-1 rounded-xl px-3 py-1.5 text-[16px] transition ${
+        active ? "text-fr-yellow" : "text-white hover:bg-white/10"
       }`}
     >
       {icon}
       {label}
       {badge && (
-        <span className="absolute right-2 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-fr-red px-1 text-[10px] font-bold text-white">{badge}</span>
+        <span className="absolute right-4 top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-fr-red px-1 text-[11px] font-bold text-white">{badge}</span>
       )}
-    </button>
-  );
-}
-
-function MapButton({ children, label, onClick }: { children: ReactNode; label: string; onClick: () => void }) {
-  return (
-    <button onClick={onClick} aria-label={label} title={label} className="grid h-10 w-10 place-items-center text-white/85 hover:bg-white/10 [&+&]:border-t [&+&]:border-white/10">
-      {children}
     </button>
   );
 }
@@ -104,6 +83,7 @@ function PanelHeader({ title, extra }: { title: string; extra?: ReactNode }) {
 }
 
 const STYLE_OPTIONS: { id: MapStyle; label: string; swatch: string }[] = [
+  { id: "fr24", label: "Map", swatch: "linear-gradient(135deg,#3d4a3c 50%,#26343e 50%)" },
   { id: "light", label: "Light", swatch: "linear-gradient(135deg,#f4f4f2 50%,#d5dde4 50%)" },
   { id: "voyager", label: "Voyager", swatch: "linear-gradient(135deg,#f7f1e3 50%,#a9cfe0 50%)" },
   { id: "dark", label: "Dark", swatch: "linear-gradient(135deg,#2c2c2c 50%,#151515 50%)" },
@@ -118,7 +98,7 @@ function SettingsPanel() {
       <div className="space-y-5 p-4">
         <div>
           <Label>Map</Label>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-5 gap-2">
             {STYLE_OPTIONS.map((o) => (
               <button key={o.id} onClick={() => updateSettings({ mapStyle: o.id })} className="text-center text-xs">
                 <span
@@ -134,6 +114,7 @@ function SettingsPanel() {
           <Label>Visibility</Label>
           <Toggle label="Callsign labels" checked={s.labels} onChange={(v) => updateSettings({ labels: v })} />
           <Toggle label="Airports" checked={s.airports} onChange={(v) => updateSettings({ airports: v })} />
+          <Toggle label="Weather radar" checked={s.weather} onChange={(v) => updateSettings({ weather: v })} />
           <div className="flex items-center justify-between text-sm">
             <span>Aircraft size</span>
             <input
@@ -203,6 +184,7 @@ function FiltersPanel() {
 
 function WidgetsPanel() {
   const data = useStore((s) => s.data);
+  const widgets = useStore((s) => s.settings.widgets);
   const { airports, types, airborne } = useMemo(() => {
     const ap = new Map<string, number>();
     const ty = new Map<string, number>();
@@ -221,6 +203,12 @@ function WidgetsPanel() {
     <div>
       <PanelHeader title="Widgets" />
       <div className="space-y-5 p-4">
+        <div className="space-y-3">
+          <Label>Show on map</Label>
+          <Toggle label="Most tracked flights" checked={widgets.tracked} onChange={(v) => updateSettings({ widgets: { ...widgets, tracked: v } })} />
+          <Toggle label="Busiest airports" checked={widgets.airports} onChange={(v) => updateSettings({ widgets: { ...widgets, airports: v } })} />
+          <Toggle label="Bookmarks" checked={widgets.bookmarks} onChange={(v) => updateSettings({ widgets: { ...widgets, bookmarks: v } })} />
+        </div>
         <div className="grid grid-cols-3 gap-2 text-center">
           {[
             ["Flights", data?.stats.pilots],

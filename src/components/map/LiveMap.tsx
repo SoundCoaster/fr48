@@ -1,50 +1,21 @@
 "use client";
 
 import * as maplibregl from "maplibre-gl";
-import type { GeoJSONSource, Map as MLMap, StyleSpecification, SymbolLayerSpecification } from "maplibre-gl";
+import type { GeoJSONSource, Map as MLMap, SymbolLayerSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { SILHOUETTE_SCALE, SILHOUETTES, type Silhouette } from "@/data/aircraft";
 import { mapInstance } from "./instance";
+import { isDarkStyle, STYLES } from "./styles";
 import { useAirportRows, useFlightDetail, type AirportRow } from "@/lib/client/data";
-import { getState, setState, subscribe, useStore, type Filters, type MapStyle } from "@/lib/client/store";
+import { getState, setState, subscribe, useStore, type Filters } from "@/lib/client/store";
 import { altitudeColor } from "@/lib/format";
 import { destination, distanceNm, greatCircle, unwrap } from "@/lib/geo";
 import type { FlightDetail, FlightRow } from "@/lib/types";
 
 // Bundlers break MapLibre's self-located worker; serve it from /public instead (see postinstall).
 maplibregl.setWorkerUrl("/maplibre-gl-worker.mjs");
-
-const CARTO = "https://basemaps.cartocdn.com/gl";
-const STYLES: Record<MapStyle, string | StyleSpecification> = {
-  light: `${CARTO}/positron-gl-style/style.json`,
-  dark: `${CARTO}/dark-matter-gl-style/style.json`,
-  voyager: `${CARTO}/voyager-gl-style/style.json`,
-  satellite: {
-    version: 8,
-    glyphs: "https://tiles.basemaps.cartocdn.com/fonts/{fontstack}/{range}.pbf",
-    sources: {
-      esri: {
-        type: "raster",
-        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
-        tileSize: 256,
-        maxzoom: 18,
-        attribution: "Imagery © Esri, Maxar, Earthstar Geographics",
-      },
-      labels: {
-        type: "raster",
-        tiles: ["https://basemaps.cartocdn.com/rastertiles/dark_only_labels/{z}/{x}/{y}@2x.png"],
-        tileSize: 256,
-        attribution: "© CARTO © OpenStreetMap contributors",
-      },
-    },
-    layers: [
-      { id: "esri", type: "raster", source: "esri" },
-      { id: "labels", type: "raster", source: "labels" },
-    ],
-  },
-};
 
 /** Aircraft PNGs are 128 px; at icon-size 1 they render as a 44 px slot. */
 const PLANE_RATIO = 128 / 44;
@@ -94,7 +65,7 @@ interface Display {
 
 function installLayers(map: MLMap) {
   addImages(map);
-  const isDark = getState().settings.mapStyle !== "light" && getState().settings.mapStyle !== "voyager";
+  const isDark = isDarkStyle(getState().settings.mapStyle);
 
   map.addSource("airports", { type: "geojson", data: EMPTY });
   map.addSource("route", { type: "geojson", data: EMPTY });
@@ -121,7 +92,7 @@ function installLayers(map: MLMap) {
   });
   const pinLayout = {
     "icon-anchor": "bottom",
-    "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 0.5, 6, 0.72, 10, 0.95, 14, 1.1],
+    "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 0.36, 6, 0.5, 10, 0.75, 14, 1],
     "icon-allow-overlap": true,
     "text-field": ["get", "code"],
     "text-font": ["Montserrat Medium", "Open Sans Bold", "Noto Sans Regular"],
@@ -145,7 +116,7 @@ function installLayers(map: MLMap) {
       "icon-image": ["case", ["==", ["get", "hl"], 1], "airport-hover", "airport"],
       "symbol-sort-key": ["get", "hl"],
       // Codes only once zoomed in a bit further than the pin itself
-      "text-field": ["step", ["zoom"], "", 5, ["get", "code"]],
+      "text-field": ["step", ["zoom"], "", 8, ["get", "code"]],
     },
     paint: pinPaint,
   });
@@ -169,9 +140,9 @@ function installLayers(map: MLMap) {
       "icon-ignore-placement": true,
       "icon-size": [
         "interpolate", ["linear"], ["zoom"],
-        1, ["*", 0.4, ["get", "k"]],
-        4, ["*", 0.55, ["get", "k"]],
-        7, ["*", 0.72, ["get", "k"]],
+        1, ["*", 0.45, ["get", "k"]],
+        4, ["*", 0.62, ["get", "k"]],
+        7, ["*", 0.8, ["get", "k"]],
         11, ["*", 0.92, ["get", "k"]],
         15, ["*", 1.2, ["get", "k"]],
       ],
@@ -189,6 +160,57 @@ function installLayers(map: MLMap) {
       "text-halo-width": 1.5,
     },
   });
+}
+
+// ---- Weather radar (RainViewer public API, free tiles up to zoom 7) ------
+
+let radarPath: { host: string; path: string; at: number } | null = null;
+async function latestRadar() {
+  if (radarPath && Date.now() - radarPath.at < 5 * 60_000) return radarPath;
+  const res = await fetch("https://api.rainviewer.com/public/weather-maps.json");
+  const d = (await res.json()) as { host: string; radar: { past: { path: string }[] } };
+  const last = d.radar.past[d.radar.past.length - 1];
+  radarPath = { host: d.host, path: last.path, at: Date.now() };
+  return radarPath;
+}
+
+async function syncRadar(map: MLMap, on: boolean) {
+  if (map.getLayer("radar")) map.removeLayer("radar");
+  if (map.getSource("radar")) map.removeSource("radar");
+  if (!on) return;
+  try {
+    const r = await latestRadar();
+    if (map.getSource("radar") || !getState().settings.weather) return;
+    map.addSource("radar", {
+      type: "raster",
+      tiles: [`${r.host}${r.path}/256/{z}/{x}/{y}/2/1_1.png`],
+      tileSize: 256,
+      maxzoom: 7,
+      attribution: "Radar © RainViewer",
+    });
+    map.addLayer({ id: "radar", type: "raster", source: "radar", paint: { "raster-opacity": 0.7 } }, "route");
+  } catch {
+    console.warn("[map] weather radar unavailable");
+  }
+}
+
+const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+
+function airportLabelHtml(row: AirportRow): string {
+  const [icao, iata, name, , , , , , cc] = row;
+  const flag = /^[A-Z]{2}$/.test(cc) ? `<img src="https://flagcdn.com/h40/${cc.toLowerCase()}.png" alt="">` : "";
+  return `<b>${esc(name)}</b><span>${flag}${esc([iata, icao].filter(Boolean).join(" / "))}</span>`;
+}
+
+/** On-screen pin height (px) at a zoom, mirroring the pin layer's icon-size. */
+function pinHeight(zoom: number): number {
+  const stops: [number, number][] = [[2, 0.36], [6, 0.5], [10, 0.75], [14, 1]];
+  let k = stops[0][1];
+  for (let i = 1; i < stops.length; i++) {
+    const [z0, v0] = stops[i - 1], [z1, v1] = stops[i];
+    if (zoom >= z0) k = zoom >= z1 ? v1 : v0 + ((zoom - z0) / (z1 - z0)) * (v1 - v0);
+  }
+  return 28 * k;
 }
 
 function matches(f: FlightRow, flt: Filters): boolean {
@@ -240,6 +262,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
   const mapRef = useRef<MLMap | null>(null);
   const displayRef = useRef(new Map<string, Display>());
   const selectedRef = useRef(selected);
+  const selectedAirportRef = useRef(selectedAirport);
   const detailRef = useRef<FlightDetail | null>(null);
   const airportsRef = useRef<AirportRow[] | null>(null);
   const highlightRef = useRef<string[]>([]);
@@ -250,6 +273,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
   const { data: airports } = useAirportRows();
 
   selectedRef.current = selected;
+  selectedAirportRef.current = selectedAirport?.toUpperCase() ?? null;
   detailRef.current = detail && detail.callsign === selected ? detail : null;
   airportsRef.current = airports;
 
@@ -280,6 +304,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
     map.on("error", (e) => console.error("[map]", e.error?.message ?? e));
     map.on("style.load", () => {
       installLayers(map);
+      syncRadar(map, getState().settings.weather);
       forceRef.current++;
       refreshAirports();
     });
@@ -295,28 +320,62 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
     const tip = document.createElement("div");
     tip.className = "fr-tooltip";
     container.current!.appendChild(tip);
+    const selLabel = document.createElement("div");
+    selLabel.className = "fr-tooltip fr-tooltip-selected";
+    container.current!.appendChild(selLabel);
+    let hoverCs: string | null = null;
+    const aptLabel = document.createElement("div");
+    aptLabel.className = "fr-tooltip fr-airport-label";
+    container.current!.appendChild(aptLabel);
+    let hoverApt: string | null = null;
+    const placeAptLabel = (row: AirportRow) => {
+      const { x, y } = map.project([row[4], row[3]]);
+      if (aptLabel.dataset.icao !== row[0]) {
+        aptLabel.innerHTML = airportLabelHtml(row);
+        aptLabel.dataset.icao = row[0];
+      }
+      aptLabel.style.transform = `translate(${x}px, ${y - pinHeight(map.getZoom()) - 10}px) translate(-50%, -100%)`;
+      aptLabel.style.opacity = "1";
+    };
+    // Index airport rows once per data refresh instead of scanning ~4k rows every frame
+    let aptIndexFor: AirportRow[] | null = null;
+    let aptIndex = new Map<string, AirportRow>();
+    const findAirport = (icao: string | null) => {
+      if (!icao) return undefined;
+      const rows = airportsRef.current;
+      if (rows !== aptIndexFor) {
+        aptIndexFor = rows;
+        aptIndex = new Map((rows ?? []).map((r) => [r[0], r]));
+      }
+      return aptIndex.get(icao);
+    };
     map.on("mousemove", "flights", (e) => {
       const f = e.features?.[0];
       if (!f) return;
       map.getCanvas().style.cursor = "pointer";
-      const p = f.properties as { cs: string; t: string; r: string };
-      tip.innerHTML = `<b>${p.cs}</b>${p.t ? ` <span>${p.t}</span>` : ""}${p.r ? `<em>${p.r}</em>` : ""}`;
-      tip.style.transform = `translate(${e.point.x + 14}px, ${e.point.y - 12}px)`;
-      tip.style.opacity = "1";
+      const p = f.properties as { cs: string };
+      hoverCs = p.cs;
+      const { x, y } = map.project((f.geometry as GeoJSON.Point).coordinates as [number, number]);
+      tip.textContent = p.cs;
+      tip.style.transform = `translate(${x}px, ${y - 22}px) translate(-50%, -100%)`;
+      tip.style.opacity = p.cs === selectedRef.current ? "0" : "1";
     });
     map.on("mouseleave", "flights", () => {
       map.getCanvas().style.cursor = "";
       tip.style.opacity = "0";
+      hoverCs = null;
     });
     map.on("mousemove", "airports-pin", (e) => {
       const icao = e.features?.[0]?.properties.icao;
       if (!icao) return;
       map.getCanvas().style.cursor = "pointer";
       map.setFilter("airports-pin-hover", ["==", ["get", "icao"], icao]);
+      hoverApt = icao;
     });
     map.on("mouseleave", "airports-pin", () => {
       map.getCanvas().style.cursor = "";
       map.setFilter("airports-pin-hover", ["==", ["get", "icao"], ""]);
+      hoverApt = null;
     });
 
     map.on("click", (e) => {
@@ -346,6 +405,18 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       const dt = Math.min(1, (now - lastFrame) / 1000);
       lastFrame = now;
       const st = getState();
+      const selNow = selectedRef.current ? displayRef.current.get(selectedRef.current) : undefined;
+      if (selNow) {
+        const { x, y } = map.project([selNow.lon, selNow.lat]);
+        selLabel.textContent = selectedRef.current;
+        selLabel.style.transform = `translate(${x}px, ${y - 22}px) translate(-50%, -100%)`;
+        selLabel.style.opacity = "1";
+      } else selLabel.style.opacity = "0";
+      if (hoverCs && hoverCs === selectedRef.current) tip.style.opacity = "0";
+      const aptIcao = hoverApt ?? selectedAirportRef.current;
+      const aptRow = aptIcao ? findAirport(aptIcao) : undefined;
+      if (aptRow) placeAptLabel(aptRow);
+      else if (aptLabel.style.opacity !== "0") aptLabel.style.opacity = "0";
       const src = map.getSource("flights") as GeoJSONSource | undefined;
       if (!st.data || !src) return;
 
@@ -403,7 +474,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
             k: (SILHOUETTE_SCALE[sil] ?? 1) * (isSel ? k * 1.1 : k),
             t: type,
             r: dep && arr ? `${dep} → ${arr}` : "",
-            lbl: labels || isSel ? cs : "",
+            lbl: labels && !isSel ? cs : "",
             g: ground,
             a: alt,
           },
@@ -449,6 +520,13 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ---- weather radar toggle
+  const weather = useStore((s) => s.settings.weather);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map?.isStyleLoaded()) syncRadar(map, weather);
+  }, [weather]);
 
   // ---- style switching
   const styleRef = useRef(mapStyle);

@@ -1,4 +1,4 @@
-import { USER_AGENT } from "@/lib/traffic-service";
+import { USER_AGENT } from "@/lib/constants";
 
 interface PlanespottersPhoto {
   link: string;

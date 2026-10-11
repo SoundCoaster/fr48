@@ -2,10 +2,9 @@ import { airportDetail, airportRows, flightDetail, flightRows, search } from "./
 import { TrafficStore } from "./traffic-store";
 import type { VatsimFeed } from "./types";
 
-export const VATSIM_FEED = "https://data.vatsim.net/v3/vatsim-data.json";
-export const USER_AGENT = "FlightRadar48/1.0 (+https://github.com/SoundCoaster/fr48)";
-/** VATSIM publishes a new snapshot every 15 seconds. */
-export const REFRESH_MS = 15_000;
+import { REFRESH_MS, USER_AGENT, VATSIM_FEED } from "./constants";
+
+export { REFRESH_MS };
 
 /**
  * Owns the traffic store, keeps it fed from VATSIM, and serialises the API
@@ -17,6 +16,22 @@ export class TrafficService {
   private lastFetch = 0;
   private inflight: Promise<void> | null = null;
   private cache = new Map<string, { version: number; body: string }>();
+  /** callsign -> timestamps (ms) of recent detail requests, to estimate live viewers. */
+  private views = new Map<string, number[]>();
+
+  /** Each open flight panel polls every 15 s, so requests in the last 15 s ≈ viewers. */
+  private viewers(): Map<string, number> {
+    const cutoff = Date.now() - 16_000;
+    const out = new Map<string, number>();
+    for (const [cs, ts] of this.views) {
+      const recent = ts.filter((t) => t > cutoff);
+      if (recent.length) {
+        this.views.set(cs, recent);
+        out.set(cs, recent.length);
+      } else this.views.delete(cs);
+    }
+    return out;
+  }
 
   async refresh(): Promise<void> {
     if (this.inflight) return this.inflight;
@@ -52,11 +67,14 @@ export class TrafficService {
 
   async flights(): Promise<string> {
     await this.ensureFresh();
-    return this.cached("flights", () => flightRows(this.store));
+    return this.cached("flights", () => flightRows(this.store, this.viewers()));
   }
 
   async flight(callsign: string): Promise<string | null> {
     await this.ensureFresh();
+    const ts = this.views.get(callsign) ?? [];
+    ts.push(Date.now());
+    this.views.set(callsign, ts.slice(-500));
     const body = this.cached(`f:${callsign}`, () => flightDetail(this.store, callsign));
     return body === "null" ? null : body;
   }

@@ -1,7 +1,7 @@
 // Builds the static reference data used by FlightRadar48.
 // Usage: node scripts/build-data.mjs
 // Sources: VATSpy data project, OurAirports, OpenFlights (all openly licensed).
-import { writeFile, mkdir } from "node:fs/promises";
+import { writeFile, mkdir, rm } from "node:fs/promises";
 
 const SRC = {
   vatspy: "https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/VATSpy.dat",
@@ -9,6 +9,7 @@ const SRC = {
   oaCountries: "https://davidmegginson.github.io/ourairports-data/countries.csv",
   ofAirports: "https://raw.githubusercontent.com/jpatokal/openflights/master/data/airports.dat",
   ofAirlines: "https://raw.githubusercontent.com/jpatokal/openflights/master/data/airlines.dat",
+  oaRunways: "https://davidmegginson.github.io/ourairports-data/runways.csv",
 };
 
 const get = async (url) => {
@@ -39,7 +40,7 @@ function parseCsv(text) {
 const nul = (v) => (v === "\\N" || v === undefined ? "" : v);
 const round = (n, d = 4) => Math.round(n * 10 ** d) / 10 ** d;
 
-const [vatspy, oaAirportsTxt, oaCountriesTxt, ofAirportsTxt, ofAirlinesTxt] = await Promise.all(
+const [vatspy, oaAirportsTxt, oaCountriesTxt, ofAirportsTxt, ofAirlinesTxt, oaRunwaysTxt] = await Promise.all(
   Object.values(SRC).map(get),
 );
 
@@ -87,7 +88,7 @@ for (const line of section("Airports")) {
     icao,
     o?.iata || (iataLid && iataLid.length === 3 ? iataLid : ""),
     o?.name || vName,
-    (o?.city || "").replace(/\s*\(.*\)$/, ""),
+    (o?.city || "").replace(/\s*\(.*\)$/, "").split(",")[0].trim(),
     o?.iso || "",
     round(+lat),
     round(+lon),
@@ -120,3 +121,19 @@ await writeFile(
 await writeFile("src/data/airlines.json", JSON.stringify(airlines));
 await writeFile("src/data/countries.json", JSON.stringify(countries));
 console.log(`airports: ${airports.length}, airlines: ${Object.keys(airlines).length}, countries: ${Object.keys(countries).length}`);
+
+// --- Runways, served as static chunks (public/runways/{first 2 ICAO letters}.json)
+// so they never weigh on the Worker bundle.
+// Row: [le_ident, he_ident, length_ft, width_ft, surface, lighted, le_heading]
+const runways = {};
+for (const r of parseCsv(oaRunwaysTxt).slice(1)) {
+  const [, , ident, len, wid, surface, lighted, closed, le, , , , leHdg, , he] = r;
+  if (!seen.has(ident) || closed === "1") continue;
+  (runways[ident] ??= []).push([le, he, +len || 0, +wid || 0, surface, lighted === "1" ? 1 : 0, leHdg ? Math.round(+leHdg) : null]);
+}
+await rm("public/runways", { recursive: true, force: true });
+await mkdir("public/runways", { recursive: true });
+const chunks = {};
+for (const [icao, list] of Object.entries(runways)) (chunks[icao.slice(0, 2)] ??= {})[icao] = list;
+for (const [prefix, data] of Object.entries(chunks)) await writeFile(`public/runways/${prefix}.json`, JSON.stringify(data));
+console.log(`runways: ${Object.keys(runways).length} airports in ${Object.keys(chunks).length} chunks`);

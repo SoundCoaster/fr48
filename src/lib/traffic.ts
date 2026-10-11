@@ -1,6 +1,5 @@
 import "server-only";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { TrafficService } from "./traffic-service";
 
 /** Methods exposed both by the Durable Object (RPC) and the local fallback. */
 export interface TrafficApi {
@@ -11,7 +10,29 @@ export interface TrafficApi {
   search(q: string): Promise<string>;
 }
 
-const g = globalThis as unknown as { __fr48Traffic?: TrafficService };
+type Local = TrafficApi;
+const g = globalThis as unknown as { __fr48Traffic?: Promise<Local> };
+
+/**
+ * In-process fallback for `next dev`. Loaded lazily and only in development so
+ * the airport/airline database never ends up in the production Next bundle
+ * (the Durable Object has its own copy).
+ */
+function local(): Promise<Local> {
+  if (process.env.NODE_ENV !== "development") {
+    return Promise.reject(new Error("TRAFFIC Durable Object binding is missing"));
+  }
+  g.__fr48Traffic ??= import("./traffic-service").then((m) => new m.TrafficService());
+  return g.__fr48Traffic;
+}
+
+const localApi: TrafficApi = {
+  flights: async () => (await local()).flights(),
+  flight: async (cs) => (await local()).flight(cs),
+  airport: async (code) => (await local()).airport(code),
+  airports: async () => (await local()).airports(),
+  search: async (q) => (await local()).search(q),
+};
 
 /**
  * On Cloudflare the single global Durable Object keeps flight trails across
@@ -24,8 +45,7 @@ export function traffic(): TrafficApi {
   } catch {
     // Not running on Cloudflare
   }
-  g.__fr48Traffic ??= new TrafficService();
-  return g.__fr48Traffic;
+  return localApi;
 }
 
 export function json(body: string, maxAge = 5): Response {
