@@ -31,7 +31,7 @@ export function WidgetsColumn() {
   const widgets = useStore((s) => s.settings.widgets);
   if (pathname !== "/" || !(widgets.tracked || widgets.airports || widgets.bookmarks)) return null;
   return (
-    <div className="fr-scroll pointer-events-auto absolute bottom-[112px] left-3 top-3 z-20 hidden w-[340px] flex-col gap-3 overflow-y-auto sm:flex">
+    <div className="fr-scroll pointer-events-auto absolute bottom-[80px] left-3 top-3 z-20 hidden w-[340px] flex-col gap-3 overflow-y-auto sm:flex">
       {widgets.tracked && <MostTracked />}
       {widgets.airports && <BusiestAirports />}
       {widgets.bookmarks && <Bookmarks />}

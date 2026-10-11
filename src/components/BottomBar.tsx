@@ -23,29 +23,29 @@ export function BottomBar() {
   return (
     <>
       {panel && (
-        <div className="fr-scroll pointer-events-auto absolute bottom-[104px] left-1/2 z-30 max-h-[calc(100%-180px)] w-[min(420px,calc(100%-24px))] -translate-x-1/2 overflow-y-auto rounded-xl bg-fr-panel shadow-2xl ring-1 ring-white/10">
+        <div className="fr-scroll pointer-events-auto absolute bottom-[72px] left-1/2 z-30 max-h-[calc(100%-150px)] w-[min(420px,calc(100%-24px))] -translate-x-1/2 overflow-y-auto rounded-xl bg-fr-panel shadow-2xl ring-1 ring-white/10">
           {panel === "settings" && <SettingsPanel />}
           {panel === "filters" && <FiltersPanel />}
           {panel === "widgets" && <WidgetsPanel />}
         </div>
       )}
 
-      <div className="pointer-events-auto absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-stretch gap-1 rounded-2xl bg-[#3a3b3e]/90 px-3 py-2 shadow-2xl backdrop-blur">
-        <BarButton icon={<Settings size={34} strokeWidth={1.5} />} label="Settings" active={panel === "settings"} onClick={() => toggle("settings")} />
+      <div className="pointer-events-auto absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-stretch gap-0.5 rounded-xl bg-[#3a3b3e]/90 px-1.5 py-1 shadow-xl backdrop-blur">
+        <BarButton icon={<Settings size={22} strokeWidth={1.6} />} label="Settings" active={panel === "settings"} onClick={() => toggle("settings")} />
         <BarButton
-          icon={<CloudSunRain size={34} strokeWidth={1.5} />}
+          icon={<CloudSunRain size={22} strokeWidth={1.6} />}
           label="Weather"
           active={weather}
           onClick={() => updateSettings({ weather: !weather })}
         />
         <BarButton
-          icon={<Filter size={34} strokeWidth={1.5} />}
+          icon={<Filter size={22} strokeWidth={1.6} />}
           label="Filters"
           active={panel === "filters"}
           onClick={() => toggle("filters")}
           badge={nFilters || undefined}
         />
-        <BarButton icon={<LayoutPanelLeft size={34} strokeWidth={1.5} />} label="Widgets" active={panel === "widgets"} onClick={() => toggle("widgets")} />
+        <BarButton icon={<LayoutPanelLeft size={22} strokeWidth={1.6} />} label="Widgets" active={panel === "widgets"} onClick={() => toggle("widgets")} />
       </div>
     </>
   );
@@ -55,14 +55,14 @@ function BarButton({ icon, label, onClick, active, badge }: { icon: ReactNode; l
   return (
     <button
       onClick={onClick}
-      className={`relative flex min-w-[96px] flex-col items-center gap-1 rounded-xl px-3 py-1.5 text-[16px] transition ${
+      className={`relative flex min-w-[62px] flex-col items-center gap-0.5 rounded-lg px-2 py-1 text-[12px] transition ${
         active ? "text-fr-yellow" : "text-white hover:bg-white/10"
       }`}
     >
       {icon}
       {label}
       {badge && (
-        <span className="absolute right-4 top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-fr-red px-1 text-[11px] font-bold text-white">{badge}</span>
+        <span className="absolute right-2 top-0 grid h-4 min-w-4 place-items-center rounded-full bg-fr-red px-1 text-[10px] font-bold text-white">{badge}</span>
       )}
     </button>
   );

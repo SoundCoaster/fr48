@@ -14,18 +14,18 @@ export function MapControls() {
   }, []);
 
   return (
-    <div className="pointer-events-auto absolute right-3 top-[150px] z-20 hidden flex-col gap-3 sm:flex">
+    <div className="pointer-events-auto absolute right-3 top-[124px] z-20 hidden flex-col gap-2 sm:flex">
       <RoundButton label="Zoom in" onClick={() => mapInstance.current?.zoomIn()}>
-        <Plus size={30} strokeWidth={1.75} />
+        <Plus size={20} strokeWidth={1.6} />
       </RoundButton>
       <RoundButton label="Zoom out" onClick={() => mapInstance.current?.zoomOut()}>
-        <Minus size={30} strokeWidth={1.75} />
+        <Minus size={20} strokeWidth={1.6} />
       </RoundButton>
       <RoundButton
         label={full ? "Exit full screen" : "Full screen"}
         onClick={() => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {})}
       >
-        {full ? <Minimize2 size={24} strokeWidth={1.75} /> : <Maximize2 size={24} strokeWidth={1.75} />}
+        {full ? <Minimize2 size={17} strokeWidth={1.6} /> : <Maximize2 size={17} strokeWidth={1.6} />}
       </RoundButton>
       <RoundButton
         label="My location"
@@ -35,7 +35,7 @@ export function MapControls() {
           )
         }
       >
-        <Navigation size={24} strokeWidth={1.75} />
+        <Navigation size={17} strokeWidth={1.6} />
       </RoundButton>
     </div>
   );
@@ -47,7 +47,7 @@ function RoundButton({ children, label, onClick }: { children: ReactNode; label:
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="grid h-14 w-14 place-items-center rounded-full bg-[#3a3b3e]/90 text-white shadow-lg backdrop-blur transition hover:bg-[#4a4b4f]"
+      className="grid h-10 w-10 place-items-center rounded-full bg-[#3a3b3e]/90 text-white shadow-md backdrop-blur transition hover:bg-[#4a4b4f]"
     >
       {children}
     </button>

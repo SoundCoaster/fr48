@@ -51,11 +51,9 @@ body {
 .maplibregl-ctrl-attrib {
   font-size: 10px;
 }
-.maplibregl-ctrl-bottom-right {
-  bottom: 56px;
-}
+.maplibregl-ctrl-bottom-right,
 .maplibregl-ctrl-bottom-left {
-  bottom: 56px;
+  bottom: 0;
 }
 
 /* FR24-style callsign label: white bubble with a pointer, above the aircraft */

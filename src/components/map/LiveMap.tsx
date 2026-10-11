@@ -44,7 +44,11 @@ function addImages(map: MLMap) {
     ["airport-hover", "/airport-hover.png", PIN_RATIO],
   ];
   for (const s of SILHOUETTES) {
-    entries.push([`plane-${s}`, `/aircraft/${s}.png`, PLANE_RATIO], [`plane-${s}-sel`, `/aircraft/${s}-sel.png`, PLANE_RATIO]);
+    entries.push(
+      [`plane-${s}`, `/aircraft/${s}.png`, PLANE_RATIO],
+      [`plane-${s}-sel`, `/aircraft/${s}-sel.png`, PLANE_RATIO],
+      [`shadow-${s}`, `/aircraft/${s}-shadow.png`, PLANE_RATIO],
+    );
   }
   for (const [id, url, pixelRatio] of entries) {
     loadImage(url)
@@ -128,24 +132,35 @@ function installLayers(map: MLMap) {
     layout: { ...pinLayout, "icon-image": "airport-hover" },
     paint: pinPaint,
   });
+  const planeIcon = {
+    "icon-rotate": ["get", "h"],
+    "icon-rotation-alignment": "map",
+    "icon-allow-overlap": true,
+    "icon-ignore-placement": true,
+    "icon-size": [
+      "interpolate", ["linear"], ["zoom"],
+      1, ["*", 0.45, ["get", "k"]],
+      4, ["*", 0.62, ["get", "k"]],
+      7, ["*", 0.8, ["get", "k"]],
+      11, ["*", 0.92, ["get", "k"]],
+      15, ["*", 1.2, ["get", "k"]],
+    ],
+  } satisfies SymbolLayerSpecification["layout"];
+  // Soft drop shadow, offset in screen space so light always comes from the same side
+  map.addLayer({
+    id: "flights-shadow",
+    type: "symbol",
+    source: "flights",
+    layout: { ...planeIcon, "icon-image": ["concat", "shadow-", ["get", "s"]] },
+    paint: { "icon-translate": [1.5, 2.5], "icon-translate-anchor": "viewport", "icon-opacity": 0.9 },
+  });
   map.addLayer({
     id: "flights",
     type: "symbol",
     source: "flights",
     layout: {
+      ...planeIcon,
       "icon-image": ["concat", "plane-", ["get", "s"], ["case", ["==", ["get", "sel"], 1], "-sel", ""]],
-      "icon-rotate": ["get", "h"],
-      "icon-rotation-alignment": "map",
-      "icon-allow-overlap": true,
-      "icon-ignore-placement": true,
-      "icon-size": [
-        "interpolate", ["linear"], ["zoom"],
-        1, ["*", 0.45, ["get", "k"]],
-        4, ["*", 0.62, ["get", "k"]],
-        7, ["*", 0.8, ["get", "k"]],
-        11, ["*", 0.92, ["get", "k"]],
-        15, ["*", 1.2, ["get", "k"]],
-      ],
       "symbol-sort-key": ["get", "sel"],
       "text-field": ["get", "lbl"],
       "text-font": ["Montserrat Medium", "Open Sans Bold", "Noto Sans Regular"],
@@ -159,6 +174,14 @@ function installLayers(map: MLMap) {
       "text-halo-color": isDark ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.95)",
       "text-halo-width": 1.5,
     },
+  });
+  // Hovered aircraft switches to the highlight colour
+  map.addLayer({
+    id: "flights-hover",
+    type: "symbol",
+    source: "flights",
+    filter: ["==", ["get", "cs"], ""],
+    layout: { ...planeIcon, "icon-image": ["concat", "plane-", ["get", "s"], "-sel"] },
   });
 }
 
@@ -354,6 +377,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       if (!f) return;
       map.getCanvas().style.cursor = "pointer";
       const p = f.properties as { cs: string };
+      if (hoverCs !== p.cs) map.setFilter("flights-hover", ["==", ["get", "cs"], p.cs]);
       hoverCs = p.cs;
       const { x, y } = map.project((f.geometry as GeoJSON.Point).coordinates as [number, number]);
       tip.textContent = p.cs;
@@ -364,6 +388,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       map.getCanvas().style.cursor = "";
       tip.style.opacity = "0";
       hoverCs = null;
+      map.setFilter("flights-hover", ["==", ["get", "cs"], ""]);
     });
     map.on("mousemove", "airports-pin", (e) => {
       const icao = e.features?.[0]?.properties.icao;
