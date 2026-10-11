@@ -15,6 +15,7 @@ export interface Settings {
   distanceUnit: "nm" | "km" | "mi";
   timeZone: "utc" | "local";
   weather: boolean;
+  dayNight: boolean;
   widgets: { tracked: boolean; airports: boolean; bookmarks: boolean };
 }
 
@@ -45,6 +46,7 @@ export const DEFAULT_SETTINGS: Settings = {
   distanceUnit: "nm",
   timeZone: "utc",
   weather: false,
+  dayNight: true,
   widgets: { tracked: true, airports: true, bookmarks: true },
 };
 

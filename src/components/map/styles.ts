@@ -4,18 +4,30 @@ import type { MapStyle } from "@/lib/client/store";
 const CARTO = "https://basemaps.cartocdn.com/gl";
 const GLYPHS = "https://tiles.basemaps.cartocdn.com/fonts/{fontstack}/{range}.pbf";
 const ESRI_IMAGERY = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+const ESRI_PHYSICAL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}";
+/** Ocean colour sampled from Flightradar24's default map. */
+const FR24_WATER = "#41707d";
 const FONT_MEDIUM = ["Montserrat Medium", "Open Sans Bold", "Noto Sans Regular"];
 const FONT_REGULAR = ["Montserrat Regular", "Open Sans Regular", "Noto Sans Regular"];
 const NAME: ExpressionSpecification = ["coalesce", ["get", "name_en"], ["get", "name"]];
 
 /**
- * Flightradar24-like default: darkened satellite imagery with crisp black
- * country borders and dark place labels on a light halo.
+ * Flightradar24-like default. FR24 uses a darkened Google terrain map; we get
+ * the same palette (green lowlands, tan deserts, shaded relief, teal oceans)
+ * from Esri's physical map, darkened with raster settings fitted to colours
+ * sampled from FR24. It stops at zoom 8, where darkened imagery takes over.
  */
 const fr24: StyleSpecification = {
   version: 8,
   glyphs: GLYPHS,
   sources: {
+    physical: {
+      type: "raster",
+      tiles: [ESRI_PHYSICAL],
+      tileSize: 256,
+      maxzoom: 8,
+      attribution: "Esri, US National Park Service",
+    },
     imagery: {
       type: "raster",
       tiles: [ESRI_IMAGERY],
@@ -29,12 +41,37 @@ const fr24: StyleSpecification = {
     },
   },
   layers: [
-    { id: "bg", type: "background", paint: { "background-color": "#22313a" } },
+    { id: "bg", type: "background", paint: { "background-color": FR24_WATER } },
+    {
+      id: "physical",
+      type: "raster",
+      source: "physical",
+      maxzoom: 10,
+      paint: {
+        "raster-brightness-max": 0.55,
+        "raster-opacity": ["interpolate", ["linear"], ["zoom"], 8, 1, 9.5, 0],
+        "raster-fade-duration": 0,
+      },
+    },
     {
       id: "imagery",
       type: "raster",
       source: "imagery",
-      paint: { "raster-brightness-max": 0.68, "raster-brightness-min": 0.08, "raster-saturation": -0.3, "raster-contrast": 0.05 },
+      minzoom: 8,
+      paint: {
+        "raster-brightness-max": 0.62,
+        "raster-brightness-min": 0.06,
+        "raster-saturation": -0.3,
+        "raster-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0, 9.5, 1],
+      },
+    },
+    {
+      // Pull the oceans towards FR24's teal
+      id: "water-tint",
+      type: "fill",
+      source: "carto",
+      "source-layer": "water",
+      paint: { "fill-color": FR24_WATER, "fill-opacity": 0.45, "fill-antialias": false },
     },
     {
       id: "boundary-state",

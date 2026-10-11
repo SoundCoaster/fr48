@@ -224,8 +224,9 @@ function AirportPhoto({ icao, name }: { icao: string; name: string }) {
 
   if (loaded && !photo) return null;
   return (
-    <div className="overflow-hidden rounded-md bg-[#2a2b2e] p-1.5">
-      <div className="relative aspect-[16/10] overflow-hidden rounded-sm bg-[#3a3b3e]">
+    // Edge to edge, no frame: cancel the body padding around it
+    <div className="-mx-1.5 -mt-1.5">
+      <div className="relative aspect-[16/10] overflow-hidden bg-[#3a3b3e]">
         {photo ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}

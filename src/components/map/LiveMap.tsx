@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { SILHOUETTE_SCALE, SILHOUETTES, type Silhouette } from "@/data/aircraft";
 import { mapInstance } from "./instance";
+import { syncNight } from "./daynight";
 import { isDarkStyle, STYLES } from "./styles";
 import { useAirportRows, useFlightDetail, type AirportRow } from "@/lib/client/data";
 import { getState, setState, subscribe, useStore, type Filters } from "@/lib/client/store";
@@ -327,6 +328,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
     map.on("error", (e) => console.error("[map]", e.error?.message ?? e));
     map.on("style.load", () => {
       installLayers(map);
+      syncNight(map, getState().settings.dayNight, "route");
       syncRadar(map, getState().settings.weather);
       forceRef.current++;
       refreshAirports();
@@ -548,6 +550,19 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ---- day/night shading, redrawn every minute
+  const dayNight = useStore((s) => s.settings.dayNight);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map?.isStyleLoaded()) syncNight(map, dayNight, "route");
+    if (!dayNight) return;
+    const t = setInterval(() => {
+      const m = mapRef.current;
+      if (m?.isStyleLoaded() && !document.hidden) syncNight(m, true, "route");
+    }, 60_000);
+    return () => clearInterval(t);
+  }, [dayNight]);
 
   // ---- weather radar toggle
   const weather = useStore((s) => s.settings.weather);
