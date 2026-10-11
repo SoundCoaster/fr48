@@ -1,22 +1,28 @@
+/* eslint-disable @next/next/no-img-element */
 import type { Silhouette } from "@/data/aircraft";
-import { silhouettePath } from "@/lib/silhouettes";
 
 export function AircraftIcon({
   silhouette,
   size = 24,
   rotate = 0,
+  selected = false,
   className = "",
-  fill = "currentColor",
 }: {
   silhouette: Silhouette;
   size?: number;
   rotate?: number;
+  selected?: boolean;
   className?: string;
-  fill?: string;
 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" className={className} style={{ transform: `rotate(${rotate}deg)` }} aria-hidden>
-      <path d={silhouettePath(silhouette)} fill={fill} />
-    </svg>
+    <img
+      src={`/aircraft/${silhouette}${selected ? "-sel" : ""}.png`}
+      alt=""
+      width={size}
+      height={size}
+      draggable={false}
+      className={`inline-block select-none ${className}`}
+      style={{ transform: rotate ? `rotate(${rotate}deg)` : undefined }}
+    />
   );
 }

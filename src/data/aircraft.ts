@@ -1,83 +1,109 @@
 // ICAO aircraft type designator -> [display name, silhouette category]
+/** Map icon family; each has /public/aircraft/{name}.png and {name}-sel.png. */
 export type Silhouette =
   | "a380"
+  | "b747"
+  | "a340"
   | "quad"
-  | "heavy"
-  | "narrow"
+  | "b777"
+  | "a350"
+  | "b787"
+  | "a330"
+  | "b767"
+  | "trijet"
+  | "b757"
+  | "a321"
+  | "a320"
+  | "b737"
+  | "ejet"
   | "rj"
-  | "prop"
-  | "ga"
   | "bizjet"
+  | "turboprop"
+  | "twinprop"
+  | "ga"
+  | "glider"
   | "heli"
-  | "fighter";
+  | "fighter"
+  | "balloon"
+  | "santa";
+
+/** Relative on-map size of each icon family. */
+export const SILHOUETTE_SCALE: Record<Silhouette, number> = {
+  a380: 1.25, b747: 1.2, a340: 1.12, quad: 0.95, b777: 1.15, a350: 1.12, b787: 1.08, a330: 1.1,
+  b767: 1.05, trijet: 1.1, b757: 0.95, a321: 0.92, a320: 0.88, b737: 0.88, ejet: 0.82, rj: 0.8,
+  bizjet: 0.72, turboprop: 0.82, twinprop: 0.7, ga: 0.62, glider: 0.66, heli: 0.66, fighter: 0.7,
+  balloon: 0.6, santa: 1.6,
+};
+
+export const SILHOUETTES = Object.keys(SILHOUETTE_SCALE) as Silhouette[];
 
 const T: Record<string, [string, Silhouette]> = {
   // Airbus
-  A19N: ["Airbus A319neo", "narrow"],
-  A20N: ["Airbus A320neo", "narrow"],
-  A21N: ["Airbus A321neo", "narrow"],
-  A318: ["Airbus A318", "narrow"],
-  A319: ["Airbus A319", "narrow"],
-  A320: ["Airbus A320", "narrow"],
-  A321: ["Airbus A321", "narrow"],
-  A306: ["Airbus A300-600", "heavy"],
-  A30B: ["Airbus A300", "heavy"],
-  A310: ["Airbus A310", "heavy"],
-  A332: ["Airbus A330-200", "heavy"],
-  A333: ["Airbus A330-300", "heavy"],
-  A337: ["Airbus A330 Beluga XL", "heavy"],
-  A338: ["Airbus A330-800neo", "heavy"],
-  A339: ["Airbus A330-900neo", "heavy"],
-  A342: ["Airbus A340-200", "quad"],
-  A343: ["Airbus A340-300", "quad"],
-  A345: ["Airbus A340-500", "quad"],
-  A346: ["Airbus A340-600", "quad"],
-  A359: ["Airbus A350-900", "heavy"],
-  A35K: ["Airbus A350-1000", "heavy"],
+  A19N: ["Airbus A319neo", "a320"],
+  A20N: ["Airbus A320neo", "a320"],
+  A21N: ["Airbus A321neo", "a321"],
+  A318: ["Airbus A318", "a320"],
+  A319: ["Airbus A319", "a320"],
+  A320: ["Airbus A320", "a320"],
+  A321: ["Airbus A321", "a321"],
+  A306: ["Airbus A300-600", "a330"],
+  A30B: ["Airbus A300", "a330"],
+  A310: ["Airbus A310", "a330"],
+  A332: ["Airbus A330-200", "a330"],
+  A333: ["Airbus A330-300", "a330"],
+  A337: ["Airbus A330 Beluga XL", "a330"],
+  A338: ["Airbus A330-800neo", "a330"],
+  A339: ["Airbus A330-900neo", "a330"],
+  A342: ["Airbus A340-200", "a340"],
+  A343: ["Airbus A340-300", "a340"],
+  A345: ["Airbus A340-500", "a340"],
+  A346: ["Airbus A340-600", "a340"],
+  A359: ["Airbus A350-900", "a350"],
+  A35K: ["Airbus A350-1000", "a350"],
   A388: ["Airbus A380-800", "a380"],
-  A3ST: ["Airbus A300-600ST Beluga", "heavy"],
-  A400: ["Airbus A400M Atlas", "quad"],
-  BCS1: ["Airbus A220-100", "narrow"],
-  BCS3: ["Airbus A220-300", "narrow"],
+  A3ST: ["Airbus A300-600ST Beluga", "a330"],
+  A400: ["Airbus A400M Atlas", "turboprop"],
+  BCS1: ["Airbus A220-100", "ejet"],
+  BCS3: ["Airbus A220-300", "ejet"],
   // Boeing
   B712: ["Boeing 717-200", "rj"],
   B721: ["Boeing 727-100", "rj"],
   B722: ["Boeing 727-200", "rj"],
-  B732: ["Boeing 737-200", "narrow"],
-  B733: ["Boeing 737-300", "narrow"],
-  B734: ["Boeing 737-400", "narrow"],
-  B735: ["Boeing 737-500", "narrow"],
-  B736: ["Boeing 737-600", "narrow"],
-  B737: ["Boeing 737-700", "narrow"],
-  B738: ["Boeing 737-800", "narrow"],
-  B739: ["Boeing 737-900", "narrow"],
-  B37M: ["Boeing 737 MAX 7", "narrow"],
-  B38M: ["Boeing 737 MAX 8", "narrow"],
-  B39M: ["Boeing 737 MAX 9", "narrow"],
-  B3XM: ["Boeing 737 MAX 10", "narrow"],
-  B741: ["Boeing 747-100", "quad"],
-  B742: ["Boeing 747-200", "quad"],
-  B743: ["Boeing 747-300", "quad"],
-  B744: ["Boeing 747-400", "quad"],
-  B748: ["Boeing 747-8", "quad"],
-  B74S: ["Boeing 747SP", "quad"],
-  B752: ["Boeing 757-200", "narrow"],
-  B753: ["Boeing 757-300", "narrow"],
-  B762: ["Boeing 767-200", "heavy"],
-  B763: ["Boeing 767-300", "heavy"],
-  B764: ["Boeing 767-400", "heavy"],
-  B772: ["Boeing 777-200", "heavy"],
-  B77L: ["Boeing 777-200LR", "heavy"],
-  B773: ["Boeing 777-300", "heavy"],
-  B77W: ["Boeing 777-300ER", "heavy"],
-  B778: ["Boeing 777-8", "heavy"],
-  B779: ["Boeing 777-9", "heavy"],
-  B788: ["Boeing 787-8 Dreamliner", "heavy"],
-  B789: ["Boeing 787-9 Dreamliner", "heavy"],
-  B78X: ["Boeing 787-10 Dreamliner", "heavy"],
+  B732: ["Boeing 737-200", "b737"],
+  B733: ["Boeing 737-300", "b737"],
+  B734: ["Boeing 737-400", "b737"],
+  B735: ["Boeing 737-500", "b737"],
+  B736: ["Boeing 737-600", "b737"],
+  B737: ["Boeing 737-700", "b737"],
+  B738: ["Boeing 737-800", "b737"],
+  B739: ["Boeing 737-900", "b737"],
+  B37M: ["Boeing 737 MAX 7", "b737"],
+  B38M: ["Boeing 737 MAX 8", "b737"],
+  B39M: ["Boeing 737 MAX 9", "b737"],
+  B3XM: ["Boeing 737 MAX 10", "b737"],
+  B741: ["Boeing 747-100", "b747"],
+  B742: ["Boeing 747-200", "b747"],
+  B743: ["Boeing 747-300", "b747"],
+  B744: ["Boeing 747-400", "b747"],
+  B748: ["Boeing 747-8", "b747"],
+  B74S: ["Boeing 747SP", "b747"],
+  B752: ["Boeing 757-200", "b757"],
+  B753: ["Boeing 757-300", "b757"],
+  B762: ["Boeing 767-200", "b767"],
+  B763: ["Boeing 767-300", "b767"],
+  B764: ["Boeing 767-400", "b767"],
+  B772: ["Boeing 777-200", "b777"],
+  B77L: ["Boeing 777-200LR", "b777"],
+  B773: ["Boeing 777-300", "b777"],
+  B77W: ["Boeing 777-300ER", "b777"],
+  B778: ["Boeing 777-8", "b777"],
+  B779: ["Boeing 777-9", "b777"],
+  B788: ["Boeing 787-8 Dreamliner", "b787"],
+  B789: ["Boeing 787-9 Dreamliner", "b787"],
+  B78X: ["Boeing 787-10 Dreamliner", "b787"],
   // McDonnell Douglas / Lockheed / others
-  DC10: ["McDonnell Douglas DC-10", "heavy"],
-  MD11: ["McDonnell Douglas MD-11", "heavy"],
+  DC10: ["McDonnell Douglas DC-10", "trijet"],
+  MD11: ["McDonnell Douglas MD-11", "trijet"],
   MD80: ["McDonnell Douglas MD-80", "rj"],
   MD81: ["McDonnell Douglas MD-81", "rj"],
   MD82: ["McDonnell Douglas MD-82", "rj"],
@@ -85,26 +111,26 @@ const T: Record<string, [string, Silhouette]> = {
   MD87: ["McDonnell Douglas MD-87", "rj"],
   MD88: ["McDonnell Douglas MD-88", "rj"],
   MD90: ["McDonnell Douglas MD-90", "rj"],
-  DC3: ["Douglas DC-3", "prop"],
-  DC6: ["Douglas DC-6", "prop"],
-  L101: ["Lockheed L-1011 TriStar", "heavy"],
+  DC3: ["Douglas DC-3", "turboprop"],
+  DC6: ["Douglas DC-6", "turboprop"],
+  L101: ["Lockheed L-1011 TriStar", "trijet"],
   CONC: ["Aérospatiale/BAC Concorde", "fighter"],
-  C130: ["Lockheed C-130 Hercules", "prop"],
-  C30J: ["Lockheed Martin C-130J Super Hercules", "prop"],
-  C17: ["Boeing C-17 Globemaster III", "quad"],
-  C5M: ["Lockheed C-5M Super Galaxy", "quad"],
+  C130: ["Lockheed C-130 Hercules", "turboprop"],
+  C30J: ["Lockheed Martin C-130J Super Hercules", "turboprop"],
+  C17: ["Boeing C-17 Globemaster III", "b747"],
+  C5M: ["Lockheed C-5M Super Galaxy", "b747"],
   K35R: ["Boeing KC-135R Stratotanker", "quad"],
-  KC2: ["Kawasaki C-2", "heavy"],
+  KC2: ["Kawasaki C-2", "a330"],
   E3TF: ["Boeing E-3 Sentry", "quad"],
-  AN12: ["Antonov An-12", "prop"],
-  A124: ["Antonov An-124 Ruslan", "quad"],
-  A225: ["Antonov An-225 Mriya", "quad"],
-  IL76: ["Ilyushin Il-76", "quad"],
-  IL96: ["Ilyushin Il-96", "quad"],
+  AN12: ["Antonov An-12", "turboprop"],
+  A124: ["Antonov An-124 Ruslan", "b747"],
+  A225: ["Antonov An-225 Mriya", "b747"],
+  IL76: ["Ilyushin Il-76", "b747"],
+  IL96: ["Ilyushin Il-96", "b747"],
   T154: ["Tupolev Tu-154", "rj"],
-  T204: ["Tupolev Tu-204", "narrow"],
-  SU95: ["Sukhoi Superjet 100", "narrow"],
-  C919: ["COMAC C919", "narrow"],
+  T204: ["Tupolev Tu-204", "a320"],
+  SU95: ["Sukhoi Superjet 100", "ejet"],
+  C919: ["COMAC C919", "a320"],
   AJ27: ["COMAC ARJ21", "rj"],
   // Regional jets
   CRJ1: ["Bombardier CRJ100", "rj"],
@@ -115,14 +141,14 @@ const T: Record<string, [string, Silhouette]> = {
   E135: ["Embraer ERJ-135", "rj"],
   E140: ["Embraer ERJ-140", "rj"],
   E145: ["Embraer ERJ-145", "rj"],
-  E170: ["Embraer E170", "narrow"],
-  E175: ["Embraer E175", "narrow"],
-  E75L: ["Embraer E175", "narrow"],
-  E75S: ["Embraer E175", "narrow"],
-  E190: ["Embraer E190", "narrow"],
-  E195: ["Embraer E195", "narrow"],
-  E290: ["Embraer E190-E2", "narrow"],
-  E295: ["Embraer E195-E2", "narrow"],
+  E170: ["Embraer E170", "ejet"],
+  E175: ["Embraer E175", "ejet"],
+  E75L: ["Embraer E175", "ejet"],
+  E75S: ["Embraer E175", "ejet"],
+  E190: ["Embraer E190", "ejet"],
+  E195: ["Embraer E195", "ejet"],
+  E290: ["Embraer E190-E2", "ejet"],
+  E295: ["Embraer E195-E2", "ejet"],
   F70: ["Fokker 70", "rj"],
   F100: ["Fokker 100", "rj"],
   B461: ["BAe 146-100", "quad"],
@@ -132,32 +158,32 @@ const T: Record<string, [string, Silhouette]> = {
   RJ85: ["Avro RJ85", "quad"],
   RJ1H: ["Avro RJ100", "quad"],
   // Turboprops
-  AT43: ["ATR 42-300", "prop"],
-  AT45: ["ATR 42-500", "prop"],
-  AT46: ["ATR 42-600", "prop"],
-  AT72: ["ATR 72", "prop"],
-  AT75: ["ATR 72-500", "prop"],
-  AT76: ["ATR 72-600", "prop"],
-  DH8A: ["De Havilland Canada Dash 8-100", "prop"],
-  DH8B: ["De Havilland Canada Dash 8-200", "prop"],
-  DH8C: ["De Havilland Canada Dash 8-300", "prop"],
-  DH8D: ["De Havilland Canada Dash 8-400", "prop"],
-  DHC6: ["De Havilland Canada Twin Otter", "prop"],
-  DHC7: ["De Havilland Canada Dash 7", "prop"],
+  AT43: ["ATR 42-300", "turboprop"],
+  AT45: ["ATR 42-500", "turboprop"],
+  AT46: ["ATR 42-600", "turboprop"],
+  AT72: ["ATR 72", "turboprop"],
+  AT75: ["ATR 72-500", "turboprop"],
+  AT76: ["ATR 72-600", "turboprop"],
+  DH8A: ["De Havilland Canada Dash 8-100", "turboprop"],
+  DH8B: ["De Havilland Canada Dash 8-200", "turboprop"],
+  DH8C: ["De Havilland Canada Dash 8-300", "turboprop"],
+  DH8D: ["De Havilland Canada Dash 8-400", "turboprop"],
+  DHC6: ["De Havilland Canada Twin Otter", "turboprop"],
+  DHC7: ["De Havilland Canada Dash 7", "turboprop"],
   DHC2: ["De Havilland Canada Beaver", "ga"],
-  SF34: ["Saab 340", "prop"],
-  SB20: ["Saab 2000", "prop"],
-  JS31: ["BAe Jetstream 31", "prop"],
-  JS32: ["BAe Jetstream 32", "prop"],
-  JS41: ["BAe Jetstream 41", "prop"],
-  E120: ["Embraer EMB 120 Brasilia", "prop"],
-  D328: ["Dornier 328", "prop"],
-  F50: ["Fokker 50", "prop"],
-  B190: ["Beechcraft 1900", "prop"],
-  BE20: ["Beechcraft King Air 200", "prop"],
-  BE30: ["Beechcraft King Air 300", "prop"],
-  BE9L: ["Beechcraft King Air 90", "prop"],
-  B350: ["Beechcraft King Air 350", "prop"],
+  SF34: ["Saab 340", "turboprop"],
+  SB20: ["Saab 2000", "turboprop"],
+  JS31: ["BAe Jetstream 31", "turboprop"],
+  JS32: ["BAe Jetstream 32", "turboprop"],
+  JS41: ["BAe Jetstream 41", "turboprop"],
+  E120: ["Embraer EMB 120 Brasilia", "turboprop"],
+  D328: ["Dornier 328", "turboprop"],
+  F50: ["Fokker 50", "turboprop"],
+  B190: ["Beechcraft 1900", "turboprop"],
+  BE20: ["Beechcraft King Air 200", "twinprop"],
+  BE30: ["Beechcraft King Air 300", "twinprop"],
+  BE9L: ["Beechcraft King Air 90", "twinprop"],
+  B350: ["Beechcraft King Air 350", "twinprop"],
   PC12: ["Pilatus PC-12", "ga"],
   PC24: ["Pilatus PC-24", "bizjet"],
   PC6T: ["Pilatus PC-6 Porter", "ga"],
@@ -167,7 +193,7 @@ const T: Record<string, [string, Silhouette]> = {
   TBM9: ["Daher TBM 900", "ga"],
   C208: ["Cessna 208 Caravan", "ga"],
   KODI: ["Daher Kodiak 100", "ga"],
-  P180: ["Piaggio P.180 Avanti", "prop"],
+  P180: ["Piaggio P.180 Avanti", "twinprop"],
   // Business jets
   C25A: ["Cessna Citation CJ2", "bizjet"],
   C25B: ["Cessna Citation CJ3", "bizjet"],
@@ -209,7 +235,7 @@ const T: Record<string, [string, Silhouette]> = {
   HDJT: ["Honda HA-420 HondaJet", "bizjet"],
   SF50: ["Cirrus SF50 Vision Jet", "bizjet"],
   EA50: ["Eclipse 500", "bizjet"],
-  BBJ: ["Boeing Business Jet", "narrow"],
+  BBJ: ["Boeing Business Jet", "b737"],
   // General aviation
   C150: ["Cessna 150", "ga"],
   C152: ["Cessna 152", "ga"],
@@ -219,32 +245,32 @@ const T: Record<string, [string, Silhouette]> = {
   C182: ["Cessna 182 Skylane", "ga"],
   C206: ["Cessna 206 Stationair", "ga"],
   C210: ["Cessna 210 Centurion", "ga"],
-  C310: ["Cessna 310", "prop"],
-  C340: ["Cessna 340", "prop"],
-  C414: ["Cessna 414", "prop"],
-  C421: ["Cessna 421", "prop"],
+  C310: ["Cessna 310", "twinprop"],
+  C340: ["Cessna 340", "twinprop"],
+  C414: ["Cessna 414", "twinprop"],
+  C421: ["Cessna 421", "twinprop"],
   P28A: ["Piper PA-28 Cherokee", "ga"],
   P28B: ["Piper PA-28 Cherokee", "ga"],
   P28R: ["Piper PA-28R Arrow", "ga"],
   P32R: ["Piper PA-32R Saratoga", "ga"],
   P46T: ["Piper PA-46 Malibu Meridian", "ga"],
   PA46: ["Piper PA-46 Malibu", "ga"],
-  PA34: ["Piper PA-34 Seneca", "prop"],
-  PA44: ["Piper PA-44 Seminole", "prop"],
+  PA34: ["Piper PA-34 Seneca", "twinprop"],
+  PA44: ["Piper PA-44 Seminole", "twinprop"],
   PA18: ["Piper PA-18 Super Cub", "ga"],
   J3: ["Piper J-3 Cub", "ga"],
   SR20: ["Cirrus SR20", "ga"],
   SR22: ["Cirrus SR22", "ga"],
   S22T: ["Cirrus SR22T", "ga"],
   DA40: ["Diamond DA40 Diamond Star", "ga"],
-  DA42: ["Diamond DA42 Twin Star", "prop"],
-  DA62: ["Diamond DA62", "prop"],
+  DA42: ["Diamond DA42 Twin Star", "twinprop"],
+  DA62: ["Diamond DA62", "twinprop"],
   DV20: ["Diamond DV20 Katana", "ga"],
   BE33: ["Beechcraft Bonanza 33", "ga"],
   BE35: ["Beechcraft Bonanza 35", "ga"],
   BE36: ["Beechcraft Bonanza 36", "ga"],
-  BE58: ["Beechcraft Baron 58", "prop"],
-  BE55: ["Beechcraft Baron 55", "prop"],
+  BE58: ["Beechcraft Baron 58", "twinprop"],
+  BE55: ["Beechcraft Baron 55", "twinprop"],
   M20P: ["Mooney M20", "ga"],
   M20T: ["Mooney M20 Turbo", "ga"],
   DR40: ["Robin DR400", "ga"],
@@ -253,12 +279,13 @@ const T: Record<string, [string, Silhouette]> = {
   C42: ["Comco Ikarus C42", "ga"],
   P208: ["Tecnam P2008", "ga"],
   P210: ["Piper PA-46 Malibu", "ga"],
-  GLID: ["Glider", "ga"],
-  DG1T: ["DG Flugzeugbau DG-1000", "ga"],
+  GLID: ["Glider", "glider"],
+  DG1T: ["DG Flugzeugbau DG-1000", "glider"],
   EXTR: ["Extra EA-300", "ga"],
   E300: ["Extra EA-300", "ga"],
   PTS2: ["Pitts S-2 Special", "ga"],
   ICON: ["ICON A5", "ga"],
+  BALL: ["Hot-air balloon", "balloon"],
   // Helicopters
   EC35: ["Airbus Helicopters H135", "heli"],
   EC45: ["Airbus Helicopters H145", "heli"],
@@ -285,7 +312,7 @@ const T: Record<string, [string, Silhouette]> = {
   H60: ["Sikorsky UH-60 Black Hawk", "heli"],
   H47: ["Boeing CH-47 Chinook", "heli"],
   UH1: ["Bell UH-1 Iroquois", "heli"],
-  V22: ["Bell Boeing V-22 Osprey", "prop"],
+  V22: ["Bell Boeing V-22 Osprey", "turboprop"],
   // Military jets
   F16: ["General Dynamics F-16 Fighting Falcon", "fighter"],
   F18: ["Boeing F/A-18 Hornet", "fighter"],
@@ -306,7 +333,7 @@ const T: Record<string, [string, Silhouette]> = {
   SU27: ["Sukhoi Su-27", "fighter"],
   MG29: ["Mikoyan MiG-29", "fighter"],
   B1: ["Rockwell B-1 Lancer", "fighter"],
-  B52: ["Boeing B-52 Stratofortress", "quad"],
+  B52: ["Boeing B-52 Stratofortress", "b747"],
 };
 
 export function aircraftInfo(code: string | undefined): { code: string; name: string; silhouette: Silhouette } {
@@ -317,11 +344,21 @@ export function aircraftInfo(code: string | undefined): { code: string; name: st
 }
 
 function guessSilhouette(c: string): Silhouette {
-  if (/^(A3[3-5]|B7[67]|B78|A30|IL6|DC8)/.test(c)) return "heavy";
-  if (/^(A3[124]|A2|B73|B3|E1|E2|BCS|B75)/.test(c)) return "narrow";
-  if (/^(CRJ|E13|E14)/.test(c)) return "rj";
-  if (/^(AT[47]|DH8|SF3|BE[129])/.test(c)) return "prop";
-  if (/^(C5|C6|C7|LJ|GLF|FA|CL[36]|GL)/.test(c)) return "bizjet";
+  if (/^B74/.test(c)) return "b747";
+  if (/^A34/.test(c)) return "a340";
+  if (/^B77/.test(c)) return "b777";
+  if (/^B78/.test(c)) return "b787";
+  if (/^A35/.test(c)) return "a350";
+  if (/^(A33|A30)/.test(c)) return "a330";
+  if (/^B76/.test(c)) return "b767";
+  if (/^B75/.test(c)) return "b757";
+  if (/^(B73|B3)/.test(c)) return "b737";
+  if (/^(E1[79]|E2|BCS)/.test(c)) return "ejet";
+  if (/^(CRJ|E13|E14|MD8)/.test(c)) return "rj";
+  if (/^(AT[47]|DH8|SF3)/.test(c)) return "turboprop";
+  if (/^(BE[0-9]|PA3|PA4|C3|C4)/.test(c)) return "twinprop";
+  if (/^(C5|C6|C7|LJ|GLF|FA|CL[36]|GL|E5)/.test(c)) return "bizjet";
+  if (/^(C1|C2|P28|SR2|DA4|PA)/.test(c)) return "ga";
   if (/^(R[24]|EC|AS|H[0-9]|B4[0-9])/.test(c)) return "heli";
-  return "narrow";
+  return "a320";
 }

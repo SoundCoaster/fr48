@@ -1,17 +1,16 @@
 "use client";
 
 import * as maplibregl from "maplibre-gl";
-import type { GeoJSONSource, Map as MLMap, StyleSpecification } from "maplibre-gl";
+import type { GeoJSONSource, Map as MLMap, StyleSpecification, SymbolLayerSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
-import type { Silhouette } from "@/data/aircraft";
+import { SILHOUETTE_SCALE, SILHOUETTES, type Silhouette } from "@/data/aircraft";
 import { mapInstance } from "./instance";
 import { useAirportRows, useFlightDetail, type AirportRow } from "@/lib/client/data";
 import { getState, setState, subscribe, useStore, type Filters, type MapStyle } from "@/lib/client/store";
 import { altitudeColor } from "@/lib/format";
 import { destination, distanceNm, greatCircle, unwrap } from "@/lib/geo";
-import { SILHOUETTES, silhouettePath, silhouetteScale } from "@/lib/silhouettes";
 import type { FlightDetail, FlightRow } from "@/lib/types";
 
 // Bundlers break MapLibre's self-located worker; serve it from /public instead (see postinstall).
@@ -47,10 +46,43 @@ const STYLES: Record<MapStyle, string | StyleSpecification> = {
   },
 };
 
-export const PLANE_FILL = "#fdc307";
-export const PLANE_STROKE = "#3d3000";
-export const PLANE_SELECTED = "#ff3b2f";
-const ICON_PX = 44;
+/** Aircraft PNGs are 128 px; at icon-size 1 they render as a 44 px slot. */
+const PLANE_RATIO = 128 / 44;
+/** Airport pins are 112 px tall; at icon-size 1 they render 28 px tall. */
+const PIN_RATIO = 4;
+
+const imageCache = new Map<string, Promise<HTMLImageElement>>();
+function loadImage(url: string): Promise<HTMLImageElement> {
+  let p = imageCache.get(url);
+  if (!p) {
+    p = new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = url;
+    });
+    imageCache.set(url, p);
+  }
+  return p;
+}
+
+/** Register aircraft and airport icons (again after every style change). */
+function addImages(map: MLMap) {
+  const entries: [string, string, number][] = [
+    ["airport", "/airport.png", PIN_RATIO],
+    ["airport-hover", "/airport-hover.png", PIN_RATIO],
+  ];
+  for (const s of SILHOUETTES) {
+    entries.push([`plane-${s}`, `/aircraft/${s}.png`, PLANE_RATIO], [`plane-${s}-sel`, `/aircraft/${s}-sel.png`, PLANE_RATIO]);
+  }
+  for (const [id, url, pixelRatio] of entries) {
+    loadImage(url)
+      .then((img) => {
+        if (!map.hasImage(id)) map.addImage(id, img, { pixelRatio });
+      })
+      .catch(() => console.warn("[map] missing icon", url));
+  }
+}
 
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
 
@@ -60,42 +92,8 @@ interface Display {
   hdg: number;
 }
 
-/** Rasterise every silhouette in normal and selected colours for MapLibre. */
-function addPlaneImages(map: MLMap) {
-  const ratio = 2;
-  const size = ICON_PX * ratio;
-  for (const s of SILHOUETTES) {
-    const path = new Path2D(silhouettePath(s));
-    for (const [suffix, fill, stroke] of [
-      ["", PLANE_FILL, PLANE_STROKE],
-      ["-sel", PLANE_SELECTED, "#5a0b05"],
-    ] as const) {
-      const id = `plane-${s}${suffix}`;
-      if (map.hasImage(id)) continue;
-      const canvas = document.createElement("canvas");
-      canvas.width = canvas.height = size;
-      const ctx = canvas.getContext("2d")!;
-      const k = (size / 100) * silhouetteScale(s) * 0.82;
-      ctx.translate(size / 2, size / 2);
-      ctx.scale(k, k);
-      ctx.translate(-50, -50);
-      ctx.shadowColor = "rgba(0,0,0,0.35)";
-      ctx.shadowBlur = 3 / k;
-      ctx.fillStyle = fill;
-      ctx.fill(path);
-      ctx.shadowColor = "transparent";
-      ctx.lineWidth = 2.6 / k;
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = stroke;
-      ctx.stroke(path);
-      ctx.fill(path);
-      map.addImage(id, ctx.getImageData(0, 0, size, size), { pixelRatio: ratio });
-    }
-  }
-}
-
 function installLayers(map: MLMap) {
-  addPlaneImages(map);
+  addImages(map);
   const isDark = getState().settings.mapStyle !== "light" && getState().settings.mapStyle !== "voyager";
 
   map.addSource("airports", { type: "geojson", data: EMPTY });
@@ -121,36 +119,43 @@ function installLayers(map: MLMap) {
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 3, 2.5, 10, 4] },
   });
+  const pinLayout = {
+    "icon-anchor": "bottom",
+    "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 0.5, 6, 0.72, 10, 0.95, 14, 1.1],
+    "icon-allow-overlap": true,
+    "text-field": ["get", "code"],
+    "text-font": ["Montserrat Medium", "Open Sans Bold", "Noto Sans Regular"],
+    "text-size": 11,
+    "text-offset": [0, 0.25],
+    "text-anchor": "top",
+    "text-optional": true,
+  } satisfies SymbolLayerSpecification["layout"];
+  const pinPaint = {
+    "text-color": isDark ? "#e8edf2" : "#24313d",
+    "text-halo-color": isDark ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,0.9)",
+    "text-halo-width": 1.4,
+  };
   map.addLayer({
-    id: "airports-dot",
-    type: "circle",
-    source: "airports",
-    filter: ["any", ["==", ["get", "hl"], 1], [">=", ["zoom"], ["get", "minz"]]],
-    paint: {
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 2.5, 8, 5],
-      "circle-color": ["case", ["==", ["get", "hl"], 1], "#1f2c39", "#ffffff"],
-      "circle-stroke-color": ["case", ["==", ["get", "hl"], 1], "#ffffff", "#5b6a78"],
-      "circle-stroke-width": 1.5,
-    },
-  });
-  map.addLayer({
-    id: "airports-label",
+    id: "airports-pin",
     type: "symbol",
     source: "airports",
-    filter: ["any", ["==", ["get", "hl"], 1], [">=", ["zoom"], ["+", ["get", "minz"], 1.5]]],
+    filter: ["any", ["==", ["get", "hl"], 1], [">=", ["zoom"], ["get", "minz"]]],
     layout: {
-      "text-field": ["get", "code"],
-      "text-font": ["Montserrat Medium", "Open Sans Bold", "Noto Sans Regular"],
-      "text-size": 11,
-      "text-offset": [0, 1.1],
-      "text-anchor": "top",
-      "text-optional": true,
+      ...pinLayout,
+      "icon-image": ["case", ["==", ["get", "hl"], 1], "airport-hover", "airport"],
+      "symbol-sort-key": ["get", "hl"],
+      // Codes only once zoomed in a bit further than the pin itself
+      "text-field": ["step", ["zoom"], "", 5, ["get", "code"]],
     },
-    paint: {
-      "text-color": isDark ? "#e8edf2" : "#24313d",
-      "text-halo-color": isDark ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,0.9)",
-      "text-halo-width": 1.4,
-    },
+    paint: pinPaint,
+  });
+  map.addLayer({
+    id: "airports-pin-hover",
+    type: "symbol",
+    source: "airports",
+    filter: ["==", ["get", "icao"], ""],
+    layout: { ...pinLayout, "icon-image": "airport-hover" },
+    paint: pinPaint,
   });
   map.addLayer({
     id: "flights",
@@ -303,8 +308,16 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       map.getCanvas().style.cursor = "";
       tip.style.opacity = "0";
     });
-    map.on("mouseenter", "airports-dot", () => (map.getCanvas().style.cursor = "pointer"));
-    map.on("mouseleave", "airports-dot", () => (map.getCanvas().style.cursor = ""));
+    map.on("mousemove", "airports-pin", (e) => {
+      const icao = e.features?.[0]?.properties.icao;
+      if (!icao) return;
+      map.getCanvas().style.cursor = "pointer";
+      map.setFilter("airports-pin-hover", ["==", ["get", "icao"], icao]);
+    });
+    map.on("mouseleave", "airports-pin", () => {
+      map.getCanvas().style.cursor = "";
+      map.setFilter("airports-pin-hover", ["==", ["get", "icao"], ""]);
+    });
 
     map.on("click", (e) => {
       const hits = map.queryRenderedFeatures(
@@ -312,10 +325,10 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
           [e.point.x - 6, e.point.y - 6],
           [e.point.x + 6, e.point.y + 6],
         ],
-        { layers: ["flights", "airports-dot"] },
+        { layers: ["flights", "airports-pin"] },
       );
       const plane = hits.find((h) => h.layer.id === "flights");
-      const apt = hits.find((h) => h.layer.id === "airports-dot");
+      const apt = hits.find((h) => h.layer.id === "airports-pin");
       if (plane) {
         flewToRef.current = plane.properties.cs;
         router.push(`/${encodeURIComponent(plane.properties.cs)}`);
@@ -363,7 +376,8 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       const seen = new Set<string>();
 
       for (const f of st.data.flights) {
-        const [cs, lat, lon, hdg, alt, gs, type, dep, arr, , , ground, sil] = f;
+        const [cs, lat, lon, hdg, alt, gs, type, dep, arr, , , ground, rowSil] = f;
+        const sil: Silhouette = cs.startsWith("SANTA") ? "santa" : (rowSil as Silhouette);
         const isSel = cs === sel;
         if (!isSel && !matches(f, st.filters)) continue;
         seen.add(cs);
@@ -383,10 +397,10 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
           geometry: { type: "Point", coordinates: [d.lon, d.lat] },
           properties: {
             cs,
-            s: sil as Silhouette,
+            s: sil,
             h: hdg,
             sel: isSel ? 1 : 0,
-            k: isSel ? k * 1.12 : k,
+            k: (SILHOUETTE_SCALE[sil] ?? 1) * (isSel ? k * 1.1 : k),
             t: type,
             r: dep && arr ? `${dep} → ${arr}` : "",
             lbl: labels || isSel ? cs : "",

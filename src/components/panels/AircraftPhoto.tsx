@@ -57,7 +57,7 @@ export function AircraftPhoto({ registration, silhouette, airline }: { registrat
   return (
     <div className="relative grid aspect-[16/9] place-items-center overflow-hidden bg-gradient-to-br from-[#2b3a4a] via-[#1f2a36] to-[#141a21]">
       <div className="absolute inset-0 opacity-[0.07] [background:repeating-linear-gradient(135deg,#fff_0_1px,transparent_1px_14px)]" />
-      <AircraftIcon silhouette={silhouette} size={120} rotate={-35} fill="rgba(255,255,255,0.14)" className={photo === undefined ? "animate-pulse" : ""} />
+      <AircraftIcon silhouette={silhouette} size={120} rotate={-35} className={`opacity-20 grayscale ${photo === undefined ? "animate-pulse" : ""}`} />
       <div className="absolute bottom-2 left-3 text-[10px] text-white/50">
         {photo === undefined ? "Loading photo…" : registration ? `No photo available for ${registration}` : airline ? `${airline} · no registration filed` : "No registration filed"}
       </div>

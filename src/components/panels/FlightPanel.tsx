@@ -106,8 +106,8 @@ function FlightContent({ detail: d, onClose }: { detail: FlightDetail; onClose: 
         <div className="bg-fr-panel-2 px-4 pb-4 pt-4">
           <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2">
             <AirportEnd airport={d.origin} code={d.flightPlan?.departure} align="left" />
-            <div className="pt-2 text-fr-muted">
-              <AircraftIcon silhouette="narrow" size={22} rotate={90} fill="currentColor" />
+            <div className="pt-2 opacity-40 grayscale">
+              <AircraftIcon silhouette="a320" size={24} rotate={90} />
             </div>
             <AirportEnd airport={d.destination} code={d.flightPlan?.arrival} align="right" />
           </div>
@@ -117,10 +117,10 @@ function FlightContent({ detail: d, onClose }: { detail: FlightDetail; onClose: 
               <div className="relative h-[5px] rounded-full bg-white/10">
                 <div className="absolute inset-y-0 left-0 rounded-full bg-fr-yellow" style={{ width: `${d.progress.pct}%` }} />
                 <div
-                  className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-fr-yellow drop-shadow"
+                  className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 drop-shadow"
                   style={{ left: `${Math.min(97, Math.max(3, d.progress.pct))}%` }}
                 >
-                  <AircraftIcon silhouette={d.aircraft.silhouette} size={20} rotate={90} fill="currentColor" />
+                  <AircraftIcon silhouette={d.aircraft.silhouette} size={24} rotate={90} />
                 </div>
               </div>
               <div className="mt-2 flex justify-between text-xs text-fr-muted tabular">
