@@ -33,6 +33,7 @@ During `next dev` the Durable Object is replaced by an in-process singleton, so 
 ```bash
 npm install
 npm run dev        # http://localhost:3000
+npm run build      # OpenNext build for Cloudflare (what Workers Builds runs, then `wrangler deploy`)
 npm run preview    # production build in the local Workers runtime (wrangler)
 npm run deploy     # build and deploy to Cloudflare
 npm run data       # refresh airport/airline reference data
