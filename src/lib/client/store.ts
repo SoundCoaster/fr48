@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 import type { FlightsResponse } from "../types";
 
-export type MapStyle = "fr24" | "light" | "dark" | "voyager" | "satellite";
+export type MapStyle = "google" | "fr24" | "light" | "dark" | "voyager" | "satellite";
 
 export interface Settings {
   mapStyle: MapStyle;
@@ -37,7 +37,7 @@ export interface Filters {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  mapStyle: "voyager",
+  mapStyle: "google",
   labels: false,
   airports: true,
   iconSize: 1,
@@ -108,6 +108,12 @@ function hydrate() {
     if (!localStorage.getItem("fr48:map-v2")) {
       if (settings.mapStyle === "fr24") settings.mapStyle = "voyager";
       localStorage.setItem("fr48:map-v2", "1");
+      localStorage.setItem("fr48:settings", JSON.stringify(settings));
+    }
+    // v3: the Google basemap (same as FR24) becomes the default
+    if (!localStorage.getItem("fr48:map-v3")) {
+      if (settings.mapStyle === "voyager") settings.mapStyle = "google";
+      localStorage.setItem("fr48:map-v3", "1");
       localStorage.setItem("fr48:settings", JSON.stringify(settings));
     }
   } catch {}

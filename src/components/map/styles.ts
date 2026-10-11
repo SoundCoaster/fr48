@@ -155,7 +155,55 @@ const satellite: StyleSpecification = {
   ],
 };
 
+/** Google basemap (what FR24 uses), darkened to FR24's colours. Needs a session from /api/map-session. */
+function google(session: string, key: string): StyleSpecification {
+  return {
+    version: 8,
+    glyphs: GLYPHS,
+    sources: {
+      google: {
+        type: "raster",
+        tiles: [`https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session=${session}&key=${key}`],
+        tileSize: 256,
+        maxzoom: 20,
+      },
+    },
+    layers: [
+      { id: "bg", type: "background", paint: { "background-color": FR24_WATER } },
+      {
+        id: "google",
+        type: "raster",
+        source: "google",
+        // Fitted to colours sampled from FR24 (ocean, vegetation, desert)
+        paint: { "raster-brightness-max": 0.475, "raster-brightness-min": 0.09, "raster-fade-duration": 150 },
+      },
+    ],
+  };
+}
+
+export interface GoogleSession {
+  session: string;
+  key: string;
+  expiry: number;
+}
+
+let sessionPromise: Promise<GoogleSession | null> | null = null;
+export function googleSession(): Promise<GoogleSession | null> {
+  sessionPromise ??= fetch("/api/map-session")
+    .then((r) => (r.ok ? (r.json() as Promise<GoogleSession>) : null))
+    .catch(() => null);
+  return sessionPromise;
+}
+
+/** Resolve a style id to a MapLibre style; the Google style falls back to Voyager when unavailable. */
+export async function resolveStyle(style: MapStyle): Promise<string | StyleSpecification> {
+  if (style !== "google") return STYLES[style];
+  const s = await googleSession();
+  return s ? google(s.session, s.key) : STYLES.voyager;
+}
+
 export const STYLES: Record<MapStyle, string | StyleSpecification> = {
+  google: `${CARTO}/voyager-gl-style/style.json`, // placeholder, see resolveStyle()
   fr24,
   light: `${CARTO}/positron-gl-style/style.json`,
   dark: `${CARTO}/dark-matter-gl-style/style.json`,
@@ -164,7 +212,8 @@ export const STYLES: Record<MapStyle, string | StyleSpecification> = {
 };
 
 export const STYLE_LABELS: Record<MapStyle, string> = {
-  voyager: "Map",
+  google: "Map",
+  voyager: "Voyager",
   fr24: "Terrain",
   satellite: "Satellite",
   dark: "Dark",

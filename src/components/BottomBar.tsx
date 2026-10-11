@@ -86,7 +86,8 @@ function PanelHeader({ title, extra }: { title: string; extra?: ReactNode }) {
 }
 
 const STYLE_OPTIONS: { id: MapStyle; label: string; swatch: string }[] = [
-  { id: "voyager", label: "Map", swatch: "linear-gradient(135deg,#f7f1e3 50%,#a9cfe0 50%)" },
+  { id: "google", label: "Map", swatch: "linear-gradient(135deg,#55705f 50%,#3e6672 50%)" },
+  { id: "voyager", label: "Voyager", swatch: "linear-gradient(135deg,#f7f1e3 50%,#a9cfe0 50%)" },
   { id: "fr24", label: "Terrain", swatch: "linear-gradient(135deg,#3d4a3c 50%,#26343e 50%)" },
   { id: "light", label: "Light", swatch: "linear-gradient(135deg,#f4f4f2 50%,#d5dde4 50%)" },
   { id: "dark", label: "Dark", swatch: "linear-gradient(135deg,#2c2c2c 50%,#151515 50%)" },
@@ -101,7 +102,7 @@ function SettingsPanel() {
       <div className="space-y-5 p-4">
         <div>
           <Label>Map</Label>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {STYLE_OPTIONS.map((o) => (
               <button key={o.id} onClick={() => updateSettings({ mapStyle: o.id })} className="text-center text-xs">
                 <span

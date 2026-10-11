@@ -8,7 +8,8 @@ import { useEffect, useRef } from "react";
 import { SILHOUETTE_SCALE, SILHOUETTES, type Silhouette } from "@/data/aircraft";
 import { mapInstance } from "./instance";
 import { syncNight } from "./daynight";
-import { isDarkStyle, STYLES } from "./styles";
+import { GoogleAttribution } from "./GoogleAttribution";
+import { isDarkStyle, resolveStyle, STYLES } from "./styles";
 import { useAirportRows, useFlightDetail, type AirportRow } from "@/lib/client/data";
 import { getState, setState, subscribe, useStore, type Filters } from "@/lib/client/store";
 import { altitudeColor } from "@/lib/format";
@@ -315,7 +316,11 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
     } catch {}
     const map = new maplibregl.Map({
       container: container.current!,
-      style: STYLES[getState().settings.mapStyle],
+      // Google needs a session first: start on a plain placeholder, then swap in the real style
+      style:
+        getState().settings.mapStyle === "google"
+          ? { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#41707d" } }] }
+          : STYLES[getState().settings.mapStyle],
       center: view.center,
       zoom: view.zoom,
       minZoom: 1.5,
@@ -326,6 +331,11 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       renderWorldCopies: true,
     });
     map.touchZoomRotate.disableRotation();
+    if (getState().settings.mapStyle === "google") {
+      resolveStyle("google").then((st) => {
+        if (mapRef.current === map && getState().settings.mapStyle === "google") map.setStyle(st);
+      });
+    }
     mapRef.current = map;
     mapInstance.current = map;
     if (process.env.NODE_ENV === "development") (window as unknown as { __map: MLMap }).__map = map;
@@ -583,7 +593,9 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
     const map = mapRef.current;
     if (!map || styleRef.current === mapStyle) return;
     styleRef.current = mapStyle;
-    map.setStyle(STYLES[mapStyle]);
+    resolveStyle(mapStyle).then((st) => {
+      if (mapRef.current === map && styleRef.current === mapStyle) map.setStyle(st);
+    });
   }, [mapStyle]);
 
   // ---- airports layer
@@ -641,6 +653,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
   return (
     <div className="absolute inset-0">
       <div ref={container} className="h-full w-full" />
+      <GoogleAttribution active={mapStyle === "google"} />
     </div>
   );
 }
