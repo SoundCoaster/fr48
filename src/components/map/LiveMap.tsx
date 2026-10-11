@@ -130,7 +130,12 @@ function installLayers(map: MLMap) {
     type: "symbol",
     source: "airports",
     filter: ["==", ["get", "icao"], ""],
-    layout: { ...pinLayout, "icon-image": "airport-hover" },
+    // Hovered pin turns yellow and grows slightly
+    layout: {
+      ...pinLayout,
+      "icon-image": "airport-hover",
+      "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 0.45, 6, 0.625, 10, 0.94, 14, 1.25],
+    },
     paint: pinPaint,
   });
   const planeIcon = {
@@ -353,13 +358,14 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
     aptLabel.className = "fr-tooltip fr-airport-label";
     container.current!.appendChild(aptLabel);
     let hoverApt: string | null = null;
-    const placeAptLabel = (row: AirportRow) => {
+    const placeAptLabel = (row: AirportRow, hovered: boolean) => {
       const { x, y } = map.project([row[4], row[3]]);
       if (aptLabel.dataset.icao !== row[0]) {
         aptLabel.innerHTML = airportLabelHtml(row);
         aptLabel.dataset.icao = row[0];
       }
-      aptLabel.style.transform = `translate(${x}px, ${y - pinHeight(map.getZoom()) - 10}px) translate(-50%, -100%)`;
+      const pin = pinHeight(map.getZoom()) * (hovered ? 1.25 : 1);
+      aptLabel.style.transform = `translate(${x}px, ${y - pin - 10}px) translate(-50%, -100%)`;
       aptLabel.style.opacity = "1";
     };
     // Index airport rows once per data refresh instead of scanning ~4k rows every frame
@@ -445,7 +451,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       } else if (tip.style.opacity !== "0") tip.style.opacity = "0";
       const aptIcao = hoverApt ?? selectedAirportRef.current;
       const aptRow = aptIcao ? findAirport(aptIcao) : undefined;
-      if (aptRow) placeAptLabel(aptRow);
+      if (aptRow) placeAptLabel(aptRow, aptIcao === hoverApt);
       else if (aptLabel.style.opacity !== "0") aptLabel.style.opacity = "0";
       const src = map.getSource("flights") as GeoJSONSource | undefined;
       if (!st.data || !src) return;
@@ -522,7 +528,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
         trailSrc.setData({ type: "FeatureCollection", features: trailFeatures(det, live) });
         const dest = det.destination;
         routeSrc.setData(
-          live && dest && det.status !== "landed"
+          live && dest && det.status !== "landed" && getState().showRoute
             ? { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: greatCircle(live.lat, live.lon, dest.lat, dest.lon) } }
             : EMPTY,
         );

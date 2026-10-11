@@ -84,3 +84,41 @@ export const STATUS_LABEL: Record<FlightStatus, string> = {
   landed: "Landed",
   unknown: "Unknown",
 };
+
+/** "10:45" + "PM" in the given time zone (FR24 shows 12-hour local times). */
+export function fmtTime12(ts: number | null | undefined, tz?: string | null): { time: string; ampm: string } | null {
+  if (ts === null || ts === undefined) return null;
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: tz || "UTC" }).formatToParts(ts * 1000);
+    const time = parts.filter((p) => p.type === "hour" || p.type === "minute" || p.type === "literal").map((p) => p.value).join("").trim();
+    const ampm = parts.find((p) => p.type === "dayPeriod")?.value ?? "";
+    return { time, ampm };
+  } catch {
+    return null;
+  }
+}
+
+/** "CEST (UTC +02:00)" for an IANA zone. */
+export function tzLabel(tz: string | null | undefined, ts = Date.now() / 1000): string {
+  if (!tz) return "UTC";
+  try {
+    const short = (locale: string) =>
+      new Intl.DateTimeFormat(locale, { timeZone: tz, timeZoneName: "short" }).formatToParts(ts * 1000).find((p) => p.type === "timeZoneName")?.value ?? "";
+    const named = (v: string) => v && !/^(GMT|UTC)/.test(v);
+    // en-GB knows European names (CEST, BST), en-US the American ones (EDT, PDT)
+    const abbr = [short("en-GB"), short("en-US")].find(named) ?? "";
+    const off = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "longOffset" }).formatToParts(ts * 1000).find((p) => p.type === "timeZoneName")?.value ?? "GMT";
+    const offset = off === "GMT" ? "+00:00" : off.replace("GMT", "");
+    const utc = `UTC ${offset}`;
+    return abbr ? `${abbr} (${utc})` : utc;
+  } catch {
+    return "UTC";
+  }
+}
+
+/** Duration as "HH:MM" (FR24 progress style). */
+export function fmtHM(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined || !isFinite(seconds) || seconds < 0) return "--:--";
+  const m = Math.round(seconds / 60);
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}

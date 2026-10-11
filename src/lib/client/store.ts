@@ -43,8 +43,8 @@ export const DEFAULT_SETTINGS: Settings = {
   iconSize: 1,
   altitudeUnit: "ft",
   speedUnit: "kt",
-  distanceUnit: "nm",
-  timeZone: "utc",
+  distanceUnit: "km",
+  timeZone: "local",
   weather: false,
   dayNight: true,
   widgets: { tracked: true, airports: true, bookmarks: true },
@@ -68,6 +68,8 @@ interface State {
   settings: Settings;
   filters: Filters;
   follow: boolean;
+  /** Show the selected flight's remaining route to destination. */
+  showRoute: boolean;
   panel: null | "settings" | "filters" | "widgets";
   bookmarks: Bookmark[];
 }
@@ -89,6 +91,7 @@ let state: State = {
   settings: DEFAULT_SETTINGS,
   filters: DEFAULT_FILTERS,
   follow: false,
+  showRoute: true,
   panel: null,
   bookmarks: [],
 };

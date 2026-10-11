@@ -1,7 +1,9 @@
-import type { ImageSource, Map as MLMap } from "maplibre-gl";
+import type { GeoJSONSource, Map as MLMap } from "maplibre-gl";
+import { destination } from "@/lib/geo";
 
 const RAD = Math.PI / 180;
 const MAX_LAT = 85.051129; // Web Mercator limit
+const EARTH_NM_PER_DEG = (3440.065 * Math.PI) / 180;
 
 /** Subsolar point (latitude = declination, longitude where the sun is overhead). */
 export function subsolarPoint(date: Date): { lat: number; lon: number } {
@@ -18,68 +20,58 @@ export function subsolarPoint(date: Date): { lat: number; lon: number } {
 }
 
 /**
- * Night shading in FR24-style steps: sun below the horizon, then civil,
- * nautical and astronomical twilight get progressively darker.
+ * Night bands, FR24 style: sun below the horizon, then civil, nautical and
+ * astronomical twilight. Each band is drawn as a cap around the antisolar
+ * point; caps stack, so per-cap opacities are chosen to reach a cumulative
+ * darkness of 0.15 / 0.22 / 0.29 / 0.36.
  */
-const BANDS: [altitude: number, alpha: number][] = [
-  [-18, 0.36],
-  [-12, 0.29],
-  [-6, 0.22],
+const BANDS: [sunAltitude: number, opacity: number][] = [
   [-0.833, 0.15],
+  [-6, 0.082],
+  [-12, 0.09],
+  [-18, 0.099],
 ];
 
-const W = 720;
-const H = 720;
-
-/** Render the night overlay for `date` into an equal-Mercator canvas. */
-export function drawNight(canvas: HTMLCanvasElement, date: Date) {
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext("2d")!;
-  const img = ctx.createImageData(W, H);
-  const sun = subsolarPoint(date);
-  const sinD = Math.sin(sun.lat * RAD);
-  const cosD = Math.cos(sun.lat * RAD);
-  // Pre-compute cos(lon - sunLon) per column
-  const cosH = new Float64Array(W);
-  for (let x = 0; x < W; x++) cosH[x] = Math.cos(((x + 0.5) / W * 360 - 180 - sun.lon) * RAD);
-  const yMax = Math.log(Math.tan(Math.PI / 4 + (MAX_LAT * RAD) / 2));
-
-  for (let y = 0; y < H; y++) {
-    // Rows are evenly spaced in Mercator y, not latitude
-    const my = yMax * (1 - (2 * (y + 0.5)) / H);
-    const lat = 2 * Math.atan(Math.exp(my)) - Math.PI / 2;
-    const sinP = Math.sin(lat);
-    const cosP = Math.cos(lat);
-    for (let x = 0; x < W; x++) {
-      const alt = Math.asin(sinP * sinD + cosP * cosD * cosH[x]) / RAD;
-      let a = 0;
-      for (const [limit, alpha] of BANDS) {
-        if (alt < limit) {
-          a = alpha;
-          break;
-        }
-      }
-      if (a) {
-        const i = (y * W + x) * 4;
-        img.data[i] = 4;
-        img.data[i + 1] = 14;
-        img.data[i + 2] = 28;
-        img.data[i + 3] = Math.round(a * 255);
-      }
-    }
+/**
+ * Spherical cap of angular radius `radiusDeg` around (lat, lon) as a polygon
+ * ring. Rings that enclose a pole are closed along the map edge so the fill
+ * covers it; longitudes are unwrapped (MapLibre wraps them across the
+ * antimeridian).
+ */
+function capRing(lat: number, lon: number, radiusDeg: number): [number, number][] {
+  const ring: [number, number][] = [];
+  const steps = 720;
+  let prevLon = lon;
+  for (let i = 0; i <= steps; i++) {
+    const [la, lo] = destination(lat, lon, (i / steps) * 360, radiusDeg * EARTH_NM_PER_DEG);
+    let l = lo;
+    while (l - prevLon > 180) l -= 360;
+    while (l - prevLon < -180) l += 360;
+    prevLon = l;
+    ring.push([l, Math.max(-MAX_LAT, Math.min(MAX_LAT, la))]);
   }
-  ctx.putImageData(img, 0, 0);
+  const span = ring[ring.length - 1][0] - ring[0][0];
+  if (Math.abs(span) > 180) {
+    // The cap contains a pole: the ring went all the way around the globe.
+    const pole = 90 - lat < radiusDeg ? MAX_LAT : -MAX_LAT;
+    ring.push([ring[ring.length - 1][0], pole], [ring[0][0], pole], ring[0]);
+  }
+  return ring;
 }
 
-const COORDS: [[number, number], [number, number], [number, number], [number, number]] = [
-  [-180, MAX_LAT],
-  [180, MAX_LAT],
-  [180, -MAX_LAT],
-  [-180, -MAX_LAT],
-];
-
-let canvas: HTMLCanvasElement | null = null;
+export function nightFeatures(date: Date): GeoJSON.FeatureCollection {
+  const sun = subsolarPoint(date);
+  const anti = { lat: -sun.lat, lon: sun.lon > 0 ? sun.lon - 180 : sun.lon + 180 };
+  return {
+    type: "FeatureCollection",
+    features: BANDS.map(([alt, opacity]) => ({
+      type: "Feature",
+      properties: { a: opacity },
+      // Sun altitude below `alt` <=> within (90 + alt) degrees of the antisolar point
+      geometry: { type: "Polygon", coordinates: [capRing(anti.lat, anti.lon, 90 + alt)] },
+    })),
+  };
+}
 
 /** Add, refresh or remove the day/night layer (inserted below `beforeId`). */
 export function syncNight(map: MLMap, on: boolean, beforeId?: string) {
@@ -88,17 +80,20 @@ export function syncNight(map: MLMap, on: boolean, beforeId?: string) {
     if (map.getSource("night")) map.removeSource("night");
     return;
   }
-  canvas ??= document.createElement("canvas");
-  drawNight(canvas, new Date());
-  const url = canvas.toDataURL("image/png");
-  const src = map.getSource("night") as ImageSource | undefined;
+  const data = nightFeatures(new Date());
+  const src = map.getSource("night") as GeoJSONSource | undefined;
   if (src) {
-    src.updateImage({ url, coordinates: COORDS });
+    src.setData(data);
     return;
   }
-  map.addSource("night", { type: "image", url, coordinates: COORDS });
+  map.addSource("night", { type: "geojson", data, tolerance: 0.2 });
   map.addLayer(
-    { id: "night", type: "raster", source: "night", paint: { "raster-fade-duration": 0, "raster-resampling": "linear" } },
+    {
+      id: "night",
+      type: "fill",
+      source: "night",
+      paint: { "fill-color": "#040e1c", "fill-opacity": ["get", "a"], "fill-antialias": true },
+    },
     beforeId && map.getLayer(beforeId) ? beforeId : undefined,
   );
 }

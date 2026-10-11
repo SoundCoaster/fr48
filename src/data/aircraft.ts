@@ -10,7 +10,7 @@ export type Silhouette =
   | "b787"
   | "a330"
   | "b767"
-  | "trijet"
+  | "widebody"
   | "b757"
   | "a321"
   | "a320"
@@ -30,7 +30,7 @@ export type Silhouette =
 /** Relative on-map size of each icon family. */
 export const SILHOUETTE_SCALE: Record<Silhouette, number> = {
   a380: 1.25, b747: 1.2, a340: 1.12, quad: 0.95, b777: 1.15, a350: 1.12, b787: 1.08, a330: 1.1,
-  b767: 1.05, trijet: 1.1, b757: 0.95, a321: 0.92, a320: 0.88, b737: 0.88, ejet: 0.82, rj: 0.8,
+  b767: 1.05, widebody: 1.08, b757: 0.95, a321: 0.92, a320: 0.88, b737: 0.88, ejet: 0.82, rj: 0.8,
   bizjet: 0.72, turboprop: 0.82, twinprop: 0.7, ga: 0.62, glider: 0.66, heli: 0.66, fighter: 0.7,
   balloon: 0.6, santa: 1.6,
 };
@@ -46,9 +46,9 @@ const T: Record<string, [string, Silhouette]> = {
   A319: ["Airbus A319", "a320"],
   A320: ["Airbus A320", "a320"],
   A321: ["Airbus A321", "a321"],
-  A306: ["Airbus A300-600", "a330"],
-  A30B: ["Airbus A300", "a330"],
-  A310: ["Airbus A310", "a330"],
+  A306: ["Airbus A300-600", "widebody"],
+  A30B: ["Airbus A300", "widebody"],
+  A310: ["Airbus A310", "widebody"],
   A332: ["Airbus A330-200", "a330"],
   A333: ["Airbus A330-300", "a330"],
   A337: ["Airbus A330 Beluga XL", "a330"],
@@ -61,7 +61,7 @@ const T: Record<string, [string, Silhouette]> = {
   A359: ["Airbus A350-900", "a350"],
   A35K: ["Airbus A350-1000", "a350"],
   A388: ["Airbus A380-800", "a380"],
-  A3ST: ["Airbus A300-600ST Beluga", "a330"],
+  A3ST: ["Airbus A300-600ST Beluga", "widebody"],
   A400: ["Airbus A400M Atlas", "turboprop"],
   BCS1: ["Airbus A220-100", "ejet"],
   BCS3: ["Airbus A220-300", "ejet"],
@@ -102,8 +102,8 @@ const T: Record<string, [string, Silhouette]> = {
   B789: ["Boeing 787-9 Dreamliner", "b787"],
   B78X: ["Boeing 787-10 Dreamliner", "b787"],
   // McDonnell Douglas / Lockheed / others
-  DC10: ["McDonnell Douglas DC-10", "trijet"],
-  MD11: ["McDonnell Douglas MD-11", "trijet"],
+  DC10: ["McDonnell Douglas DC-10", "widebody"],
+  MD11: ["McDonnell Douglas MD-11", "widebody"],
   MD80: ["McDonnell Douglas MD-80", "rj"],
   MD81: ["McDonnell Douglas MD-81", "rj"],
   MD82: ["McDonnell Douglas MD-82", "rj"],
@@ -113,7 +113,7 @@ const T: Record<string, [string, Silhouette]> = {
   MD90: ["McDonnell Douglas MD-90", "rj"],
   DC3: ["Douglas DC-3", "turboprop"],
   DC6: ["Douglas DC-6", "turboprop"],
-  L101: ["Lockheed L-1011 TriStar", "trijet"],
+  L101: ["Lockheed L-1011 TriStar", "widebody"],
   CONC: ["Aérospatiale/BAC Concorde", "fighter"],
   C130: ["Lockheed C-130 Hercules", "turboprop"],
   C30J: ["Lockheed Martin C-130J Super Hercules", "turboprop"],

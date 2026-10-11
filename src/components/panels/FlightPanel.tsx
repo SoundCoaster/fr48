@@ -1,24 +1,29 @@
 "use client";
 
-import { ChevronDown, Crosshair, Link2, Loader2, Star, X } from "lucide-react";
+import {
+  ChevronDown,
+  Copy,
+  ExternalLink,
+  Gauge,
+  Loader2,
+  MapPin,
+  MoreHorizontal,
+  Plane,
+  Route as RouteIcon,
+  Share,
+  Star,
+  User,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useState, type ReactNode } from "react";
-import { AircraftIcon } from "@/components/ui/AircraftIcon";
-import { AirlineLogo } from "@/components/ui/AirlineLogo";
+import { use, useEffect, useRef, useState, type ReactNode } from "react";
+import { Logo } from "@/components/Logo";
 import { useFlightDetail } from "@/lib/client/data";
 import { setState, toggleBookmark, useStore } from "@/lib/client/store";
 import { useNow } from "@/lib/client/useNow";
-import {
-  fmtAltitude,
-  fmtDistance,
-  fmtDuration,
-  fmtSpeed,
-  fmtTime,
-  fmtVs,
-  STATUS_LABEL,
-  tzAbbr,
-} from "@/lib/format";
+import { fmtAltitude, fmtDistance, fmtDuration, fmtHM, fmtSpeed, fmtTime, fmtTime12, fmtVs, tzLabel } from "@/lib/format";
 import type { FlightDetail, MiniAirport } from "@/lib/types";
 import { AircraftPhoto } from "./AircraftPhoto";
 
@@ -30,12 +35,12 @@ export function FlightPanel({ params }: { params: Promise<{ callsign: string }> 
 
   useEffect(() => {
     if (detail) {
-      document.title = `${detail.flightNumber ?? detail.callsign}${detail.airline ? ` - ${detail.airline.name}` : ""} | Flightradar48`;
+      document.title = `${detail.callsign}${detail.flightNumber ? ` (${detail.flightNumber})` : ""}${detail.airline ? ` - ${detail.airline.name}` : ""} | Flightradar48`;
     }
   }, [detail]);
 
   return (
-    <aside className="fr-slide-in pointer-events-auto absolute bottom-[72px] left-0 top-0 z-30 flex w-full flex-col overflow-hidden bg-fr-panel shadow-2xl sm:bottom-auto sm:left-3 sm:top-3 sm:max-h-[calc(100%-88px)] sm:w-[340px] sm:rounded-xl">
+    <aside className="fr-slide-in pointer-events-auto absolute bottom-[72px] left-0 top-0 z-30 flex w-full flex-col overflow-hidden bg-[#2a2b2e] shadow-2xl sm:bottom-auto sm:left-3 sm:top-3 sm:max-h-[calc(100%-88px)] sm:w-[340px] sm:rounded-xl">
       {!detail ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-sm text-fr-muted">
           {loading && !error ? (
@@ -59,204 +64,114 @@ export function FlightPanel({ params }: { params: Promise<{ callsign: string }> 
 }
 
 function FlightContent({ detail: d, onClose }: { detail: FlightDetail; onClose: () => void }) {
-  const settings = useStore((s) => s.settings);
-  const follow = useStore((s) => s.follow);
+  const [more, setMore] = useState(true);
   const starred = useStore((s) => s.bookmarks.some((b) => b.kind === "flight" && b.id === d.callsign));
-  const [copied, setCopied] = useState(false);
-  const now = useNow(5000) ?? d.times.actualDeparture ?? 0;
-
-  const share = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {}
-  };
-
-  const depTime = d.times.actualDeparture ?? null;
-  const arrTime = d.times.actualArrival ?? d.times.estimatedArrival;
 
   return (
     <>
       {/* Header */}
-      <div className="flex items-start gap-3 bg-fr-bg px-4 pb-3 pt-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <h1 className="text-[22px] font-bold leading-tight tracking-tight text-fr-yellow">{d.flightNumber ?? d.callsign}</h1>
-            {d.flightNumber && <span className="truncate text-sm font-medium text-fr-muted">{d.callsign}</span>}
-          </div>
-          <div className="flex items-center gap-2 text-[13px] text-fr-muted">
-            {d.aircraft.code && (
-              <span className="shrink-0 rounded bg-[#2f6aa3] px-1.5 py-px text-[11px] font-bold tracking-wide text-white">{d.aircraft.code}</span>
-            )}
-            <span className="truncate">{d.airline?.name ?? (d.flightPlan?.flight_rules === "V" ? "VFR flight" : "Private / Unknown operator")}</span>
-          </div>
+      <header className="px-3 pb-2 pt-2.5 text-white">
+        <div className="flex items-center gap-1.5">
+          <h1 className="text-[19px] font-medium leading-none tracking-tight text-fr-yellow">{d.callsign}</h1>
+          {d.flightNumber && <span className="rounded-[3px] bg-[#cfd0d2] px-1 text-[11px] font-semibold leading-[17px] text-[#222]">{d.flightNumber}</span>}
+          {d.aircraft.code && <span className="rounded-[3px] bg-[#2f5d86] px-1 text-[11px] font-semibold leading-[17px] text-white">{d.aircraft.code}</span>}
+          <button
+            onClick={() =>
+              toggleBookmark({
+                kind: "flight",
+                id: d.callsign,
+                label: d.flightNumber ? `${d.callsign} · ${d.flightNumber}` : d.callsign,
+                sub: [d.origin?.iata || d.flightPlan?.departure, d.destination?.iata || d.flightPlan?.arrival].filter(Boolean).join(" → "),
+              })
+            }
+            className="ml-auto rounded p-0.5 text-fr-yellow hover:bg-white/10"
+            aria-label={starred ? "Remove bookmark" : "Bookmark this flight"}
+          >
+            <Star size={19} strokeWidth={1.6} fill={starred ? "currentColor" : "none"} />
+          </button>
+          <button onClick={onClose} className="rounded p-0.5 text-white/90 hover:bg-white/10 hover:text-white" aria-label="Close">
+            <X size={21} strokeWidth={1.6} />
+          </button>
         </div>
-        {d.airline && (
-          <span className="mt-0.5 flex h-8 shrink-0 items-center rounded-md bg-white px-1.5">
-            <AirlineLogo airline={d.airline} height={22} className="max-w-[80px]" />
+        <div className="mt-1.5 flex items-center gap-2">
+          <span className="min-w-0 flex-1 truncate text-[14px] text-white/90">
+            {d.airline?.name ?? (d.flightPlan?.flight_rules === "V" ? "VFR flight" : "Private / unknown operator")}
           </span>
-        )}
-        <button
-          onClick={() =>
-            toggleBookmark({
-              kind: "flight",
-              id: d.callsign,
-              label: d.flightNumber ? `${d.flightNumber} · ${d.callsign}` : d.callsign,
-              sub: [d.origin?.iata || d.flightPlan?.departure, d.destination?.iata || d.flightPlan?.arrival].filter(Boolean).join(" → "),
-            })
-          }
-          className={`rounded-full p-1.5 hover:bg-white/10 ${starred ? "text-fr-yellow" : "text-fr-muted hover:text-white"}`}
-          aria-label={starred ? "Remove bookmark" : "Bookmark this flight"}
-        >
-          <Star size={18} fill={starred ? "currentColor" : "none"} />
-        </button>
-        <button onClick={onClose} className="-mr-1 rounded-full p-1.5 text-fr-muted hover:bg-white/10 hover:text-white" aria-label="Close">
-          <X size={18} />
-        </button>
-      </div>
-
-      <div className="fr-scroll flex-1 overflow-y-auto">
-        <AircraftPhoto registration={d.aircraft.registration} silhouette={d.aircraft.silhouette} airline={d.airline?.name} />
-
-        {/* Route block */}
-        <div className="bg-fr-panel-2 px-4 pb-4 pt-4">
-          <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2">
-            <AirportEnd airport={d.origin} code={d.flightPlan?.departure} align="left" />
-            <div className="pt-2 opacity-40 grayscale">
-              <AircraftIcon silhouette="a320" size={24} rotate={90} />
-            </div>
-            <AirportEnd airport={d.destination} code={d.flightPlan?.arrival} align="right" />
-          </div>
-
-          {d.progress && (
-            <div className="mt-4">
-              <div className="relative h-[5px] rounded-full bg-white/10">
-                <div className="absolute inset-y-0 left-0 rounded-full bg-fr-yellow" style={{ width: `${d.progress.pct}%` }} />
-                <div
-                  className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 drop-shadow"
-                  style={{ left: `${Math.min(97, Math.max(3, d.progress.pct))}%` }}
-                >
-                  <AircraftIcon silhouette={d.aircraft.silhouette} size={24} rotate={90} />
-                </div>
-              </div>
-              <div className="mt-2 flex justify-between text-xs text-fr-muted tabular">
-                <span>
-                  {fmtDistance(d.progress.flownNm, settings.distanceUnit)}
-                  {depTime ? `, ${fmtDuration(now - depTime)} ago` : ""}
-                </span>
-                <span>
-                  {fmtDistance(d.progress.remainingNm, settings.distanceUnit)}
-                  {d.status !== "landed" && d.times.estimatedArrival ? `, in ${fmtDuration(d.times.estimatedArrival - now)}` : ""}
-                </span>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-white/5 text-xs">
-            <TimeCell label="Scheduled" value={d.times.scheduledDeparture} tz={d.origin?.tz} settingsTz={settings.timeZone} />
-            <TimeCell label="Scheduled" value={d.times.scheduledArrival} tz={d.destination?.tz} settingsTz={settings.timeZone} />
-            <TimeCell label="Actual" value={d.times.actualDeparture} tz={d.origin?.tz} settingsTz={settings.timeZone} />
-            <TimeCell
-              label={d.times.actualArrival ? "Actual" : "Estimated"}
-              value={arrTime}
-              tz={d.destination?.tz}
-              settingsTz={settings.timeZone}
-              highlight={!d.times.actualArrival}
-            />
-          </div>
-
-          <div className="mt-3 flex items-center justify-between text-xs">
-            <StatusPill status={d.status} />
-            <span className="text-fr-muted">
-              {d.flightPlan?.flight_rules === "V" ? "VFR" : "IFR"} · {d.flightPlan?.altitude ? `FL${Math.round(+d.flightPlan.altitude / 100)}` : "—"}
-            </span>
-          </div>
+          <Logo height={15} className="shrink-0 opacity-90" />
         </div>
+      </header>
 
-        {/* Live data */}
-        <Section title="Flight data" defaultOpen>
-          <Grid>
-            <Cell label="Altitude" value={fmtAltitude(d.position.altitude, settings.altitudeUnit)} />
-            <Cell label="Vertical speed" value={fmtVs(d.position.verticalSpeed, settings.altitudeUnit)} />
-            <Cell label="Ground speed" value={fmtSpeed(d.position.groundspeed, settings.speedUnit)} />
-            <Cell label="Track" value={`${Math.round(d.position.heading)}°`} />
-            <Cell label="Squawk" value={d.position.squawk} />
-            <Cell label="QNH" value={`${d.position.qnhMb} hPa`} />
-            <Cell label="Latitude" value={d.position.lat.toFixed(4)} />
-            <Cell label="Longitude" value={d.position.lon.toFixed(4)} />
-          </Grid>
-        </Section>
+      <div className="fr-scroll flex-1 overflow-y-auto bg-[#d5d6d8]">
+        <AircraftPhoto registration={d.aircraft.registration} silhouette={d.aircraft.silhouette} airline={d.airline?.name} />
+        <RouteBlock d={d} />
+        <Progress d={d} />
 
-        <Section title="Aircraft" defaultOpen>
-          <Grid>
-            <Cell label="Aircraft type" value={d.aircraft.code || "—"} wide sub={d.aircraft.name !== d.aircraft.code ? d.aircraft.name : undefined} />
-            <Cell label="Registration" value={d.aircraft.registration ?? "—"} />
-            <Cell label="Wake category" value={wake(d.aircraft.wake)} />
-            <Cell label="Equipment" value={d.aircraft.equipment ?? "—"} wide mono />
-          </Grid>
-        </Section>
-
-        <Section title="Pilot">
-          <Grid>
-            <Cell label="Name" value={d.name} wide />
-            <Cell label="VATSIM ID" value={String(d.cid)} />
-            <Cell label="Rating" value={d.pilotRating || "—"} />
-            <Cell label="Server" value={d.server} />
-            <Cell label="Online since" value={`${fmtTime(Date.parse(d.logonTime) / 1000)} UTC`} />
-          </Grid>
-        </Section>
-
-        {d.flightPlan && (
-          <Section title="Flight plan">
-            <Grid>
-              <Cell label="Cruise" value={d.flightPlan.altitude ? fmtAltitude(+d.flightPlan.altitude, settings.altitudeUnit) : "—"} />
-              <Cell label="TAS" value={d.flightPlan.cruise_tas ? `${d.flightPlan.cruise_tas} kts` : "—"} />
-              <Cell label="Enroute" value={fmtDuration(hhmm(d.flightPlan.enroute_time))} />
-              <Cell label="Fuel" value={fmtDuration(hhmm(d.flightPlan.fuel_time))} />
-              <Cell
-                label="Alternate"
-                value={d.alternate ? `${d.alternate.iata || d.alternate.icao}` : d.flightPlan.alternate || "—"}
-                sub={d.alternate?.city}
-              />
-              <Cell label="Distance" value={d.progress ? fmtDistance(d.progress.totalNm, settings.distanceUnit) : "—"} />
-            </Grid>
-            <Text label="Route" value={d.flightPlan.route} />
-            <Text label="Remarks" value={d.flightPlan.remarks} />
-          </Section>
-        )}
-        <div className="h-3" />
+        <button
+          onClick={() => setMore(!more)}
+          className="flex w-full items-center gap-3 bg-[#4278b1] px-4 py-2 text-[14px] text-white hover:bg-[#4a82bd]"
+        >
+          <InfoPlaneIcon />
+          <span className="flex-1 text-center">More {d.flightNumber ?? d.callsign} information</span>
+          <ChevronDown size={18} className={`transition-transform ${more ? "rotate-180" : ""}`} />
+        </button>
+        {more && <Details d={d} />}
       </div>
 
-      {/* Action bar */}
-      <div className="grid grid-cols-3 border-t border-white/5 bg-fr-bg text-[11px] font-medium text-fr-muted">
-        <ActionButton active={follow} onClick={() => setState({ follow: !follow })} icon={<Crosshair size={18} />} label="Follow" />
-        <ActionButton onClick={share} icon={<Link2 size={18} />} label={copied ? "Copied!" : "Share"} />
-        {d.destination ? (
-          <Link href={`/airport/${d.destination.icao}`} className="flex flex-col items-center gap-1 py-2.5 hover:bg-white/5 hover:text-white">
-            <ArrivalIcon />
-            {d.destination.iata || d.destination.icao}
-          </Link>
-        ) : (
-          <span />
-        )}
-      </div>
+      <ActionBar d={d} />
     </>
   );
 }
 
-function AirportEnd({ airport, code, align }: { airport: MiniAirport | null; code?: string; align: "left" | "right" }) {
+// ---- Route & times -----------------------------------------------------------
+
+const PLANE_PATH = "M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z";
+
+function RouteBlock({ d }: { d: FlightDetail }) {
+  const timeZone = useStore((s) => s.settings.timeZone);
+  const zone = (a: MiniAirport | null) => (timeZone === "local" ? a?.tz ?? "UTC" : "UTC");
+  const late = d.times.estimatedArrival !== null && d.times.scheduledArrival !== null ? d.times.estimatedArrival - d.times.scheduledArrival : 0;
+  const dot = late > 45 * 60 ? "bg-[#e5483b]" : late > 15 * 60 ? "bg-[#f0a020]" : "bg-[#3fbf6f]";
+
+  return (
+    <div className="bg-[#ececed]">
+      <div className="relative grid grid-cols-2">
+        <Endpoint airport={d.origin} code={d.flightPlan?.departure} zone={zone(d.origin)} />
+        <Endpoint airport={d.destination} code={d.flightPlan?.arrival} zone={zone(d.destination)} border />
+        <span className="pointer-events-none absolute left-1/2 top-1/2 grid h-12 w-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white shadow-sm">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="#f2c12e" aria-hidden>
+            <path d={PLANE_PATH} transform="rotate(90 12 12)" />
+          </svg>
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-[2px] bg-[#f6f6f7] pt-[2px]">
+        <TimeRow label="Scheduled" ts={d.times.scheduledDeparture} tz={zone(d.origin)} />
+        <TimeRow label="Scheduled" ts={d.times.scheduledArrival} tz={zone(d.destination)} />
+        <TimeRow label={d.times.actualDeparture ? "Actual" : "Estimated"} ts={d.times.actualDeparture} tz={zone(d.origin)} />
+        <TimeRow
+          label={d.times.actualArrival ? "Actual" : "Estimated"}
+          ts={d.times.actualArrival ?? d.times.estimatedArrival}
+          tz={zone(d.destination)}
+          dot={d.times.actualArrival ? undefined : dot}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Endpoint({ airport, code, zone, border }: { airport: MiniAirport | null; code?: string; zone: string; border?: boolean }) {
   const label = airport ? airport.iata || airport.icao : code || "N/A";
   const inner = (
     <>
-      <div className="text-[30px] font-bold leading-none tracking-tight text-white">{label}</div>
-      <div className="mt-1 truncate text-[13px] text-white/85">{airport?.city || airport?.name || (code ? "Unknown airport" : "No flight plan")}</div>
-      {airport && <div className="truncate text-[11px] text-fr-muted">{airport.icao}</div>}
+      <div className="text-[33px] font-medium leading-none tracking-tight text-[#3a3a3c]">{label}</div>
+      <div className="mt-1.5 max-w-full truncate px-2 text-[13px] font-medium uppercase tracking-wide text-[#3a3a3c]">
+        {airport?.city || airport?.name || (code ? "Unknown airport" : "No flight plan")}
+      </div>
+      <div className="mt-0.5 h-3.5 text-[10px] text-[#8a8b8f]">{airport ? tzLabel(zone) : ""}</div>
     </>
   );
-  const cls = `min-w-0 ${align === "right" ? "text-right" : ""}`;
+  const cls = `flex min-w-0 flex-col items-center px-1 pb-2.5 pt-3 text-center ${border ? "border-l border-[#d2d3d5]" : ""}`;
   return airport ? (
-    <Link href={`/airport/${airport.icao}`} className={`${cls} hover:opacity-80`} title={airport.name}>
+    <Link href={`/airport/${airport.icao}`} className={`${cls} hover:bg-white/50`} title={airport.name}>
       {inner}
     </Link>
   ) : (
@@ -264,95 +179,237 @@ function AirportEnd({ airport, code, align }: { airport: MiniAirport | null; cod
   );
 }
 
-function TimeCell({
-  label,
-  value,
-  tz,
-  settingsTz,
-  highlight,
-}: {
-  label: string;
-  value: number | null;
-  tz?: string | null;
-  settingsTz: "utc" | "local";
-  highlight?: boolean;
-}) {
-  const zone = settingsTz === "local" ? tz : "UTC";
+function TimeRow({ label, ts, tz, dot }: { label: string; ts: number | null; tz: string; dot?: string }) {
+  const t = fmtTime12(ts, tz);
   return (
-    <div className="bg-fr-panel px-3 py-2">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-fr-muted">{label}</div>
-      <div className={`tabular text-[15px] font-semibold ${highlight && value ? "text-fr-yellow" : "text-white"}`}>
-        {fmtTime(value, zone)}
-        {value !== null && <span className="ml-1 text-[10px] font-medium text-fr-muted">{tzAbbr(zone, value)}</span>}
+    <div className="flex items-center justify-between bg-[#dfe0e2] px-2.5 py-1.5">
+      <span className="text-[11.5px] uppercase tracking-wide text-[#55565a]">{label}</span>
+      <span className="flex items-baseline gap-1 text-[#2f3033]">
+        {dot && t && <span className={`mr-0.5 h-1.5 w-1.5 self-center rounded-full ${dot}`} />}
+        <span className="text-[17px] font-medium tabular">{t?.time ?? "—"}</span>
+        {t && <span className="text-[10px] text-[#55565a]">{t.ampm}</span>}
+      </span>
+    </div>
+  );
+}
+
+function Progress({ d }: { d: FlightDetail }) {
+  const unit = useStore((s) => s.settings.distanceUnit);
+  const now = useNow(15000) ?? 0;
+  const p = d.progress;
+  if (!p) return null;
+  const pct = Math.min(96, Math.max(2, p.pct));
+  return (
+    <div className="bg-[#f1f1f2] px-3 pb-2 pt-2.5">
+      <div className="relative mx-1 h-[3px] rounded-full bg-[#cfd0d3]">
+        <div className="absolute inset-y-0 left-0 rounded-full bg-[#8b8c90]" style={{ width: `${p.pct}%` }} />
+        <span className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ left: `${pct}%` }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="#4a4b4f" aria-hidden>
+            <path d={PLANE_PATH} transform="rotate(90 12 12)" />
+          </svg>
+        </span>
+      </div>
+      <div className="mt-2.5 flex justify-between text-[12px] text-[#4a4b4f] tabular">
+        <span>
+          {fmtDistance(p.flownNm, unit)}
+          {d.times.actualDeparture && now ? `, ${fmtHM(now - d.times.actualDeparture)} ago` : ""}
+        </span>
+        <span>
+          {fmtDistance(p.remainingNm, unit)}
+          {d.status !== "landed" && d.times.estimatedArrival && now ? `, in ${fmtHM(d.times.estimatedArrival - now)}` : ""}
+        </span>
       </div>
     </div>
   );
 }
 
-export function StatusPill({ status }: { status: FlightDetail["status"] }) {
-  const color =
-    status === "landed" ? "bg-fr-green/20 text-fr-green" :
-    status === "scheduled" || status === "unknown" ? "bg-white/10 text-white/80" :
-    status === "taxiing" ? "bg-fr-blue/20 text-fr-blue" :
-    "bg-fr-yellow/20 text-fr-yellow";
-  return <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${color}`}>{STATUS_LABEL[status]}</span>;
-}
+// ---- More information ------------------------------------------------------
 
-function Section({ title, children, defaultOpen = false }: { title: string; children: ReactNode; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
+function Details({ d }: { d: FlightDetail }) {
+  const s = useStore((st) => st.settings);
+  const fp = d.flightPlan;
   return (
-    <section className="border-t border-white/5">
-      <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-between px-4 py-3 text-left text-[13px] font-semibold hover:bg-white/[0.03]">
-        {title}
-        <ChevronDown size={16} className={`text-fr-muted transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && <div className="px-4 pb-4">{children}</div>}
-    </section>
-  );
-}
-
-const Grid = ({ children }: { children: ReactNode }) => <div className="grid grid-cols-2 gap-x-4 gap-y-3">{children}</div>;
-
-function Cell({ label, value, sub, wide, mono }: { label: string; value: string; sub?: string; wide?: boolean; mono?: boolean }) {
-  return (
-    <div className={wide ? "col-span-2" : ""}>
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-fr-muted">{label}</div>
-      <div className={`break-words text-sm font-medium text-white tabular ${mono ? "font-mono text-xs" : ""}`}>{value}</div>
-      {sub && <div className="text-xs text-fr-muted">{sub}</div>}
+    <div className="divide-y divide-[#d9dadc]">
+      <DetailGroup icon={Plane}>
+        <Field
+          label={
+            <>
+              Aircraft type {d.aircraft.code && <span className="text-[#444]">({d.aircraft.code})</span>}
+            </>
+          }
+          value={d.aircraft.name}
+          wide
+        />
+        <Field label="Registration" value={d.aircraft.registration ?? "—"} />
+        <Field label="Wake category" value={WAKE[d.aircraft.wake ?? ""] ?? "—"} />
+        <Field label="Equipment" value={d.aircraft.equipment ?? "—"} wide mono />
+      </DetailGroup>
+      <DetailGroup icon={Gauge}>
+        <Field label="Altitude" value={fmtAltitude(d.position.altitude, s.altitudeUnit)} />
+        <Field label="Vertical speed" value={fmtVs(d.position.verticalSpeed, s.altitudeUnit)} />
+        <Field label="Ground speed" value={fmtSpeed(d.position.groundspeed, s.speedUnit)} />
+        <Field label="Track" value={`${Math.round(d.position.heading)}°`} />
+        <Field label="Squawk" value={d.position.squawk} />
+        <Field label="QNH" value={`${d.position.qnhMb} hPa`} />
+        <Field label="Latitude" value={d.position.lat.toFixed(4)} />
+        <Field label="Longitude" value={d.position.lon.toFixed(4)} />
+      </DetailGroup>
+      <DetailGroup icon={User}>
+        <Field label="Pilot" value={d.name} wide />
+        <Field label="VATSIM ID" value={String(d.cid)} />
+        <Field label="Rating" value={d.pilotRating || "—"} />
+        <Field label="Server" value={d.server} />
+        <Field label="Online since" value={`${fmtTime(Date.parse(d.logonTime) / 1000)} UTC`} />
+      </DetailGroup>
+      {fp && (
+        <DetailGroup icon={RouteIcon}>
+          <Field label="Flight rules" value={fp.flight_rules === "V" ? "VFR" : "IFR"} />
+          <Field label="Cruise" value={fp.altitude ? fmtAltitude(+fp.altitude, s.altitudeUnit) : "—"} />
+          <Field label="True airspeed" value={fp.cruise_tas ? `${fp.cruise_tas} kts` : "—"} />
+          <Field label="Alternate" value={d.alternate ? d.alternate.iata || d.alternate.icao : fp.alternate || "—"} />
+          <Field label="Enroute time" value={fmtDuration(hhmm(fp.enroute_time))} />
+          <Field label="Fuel on board" value={fmtDuration(hhmm(fp.fuel_time))} />
+          <Field label="Route" value={fp.route || "—"} wide mono />
+          {fp.remarks && <Field label="Remarks" value={fp.remarks} wide mono />}
+        </DetailGroup>
+      )}
     </div>
   );
 }
 
-function Text({ label, value }: { label: string; value: string }) {
-  if (!value) return null;
+function DetailGroup({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
   return (
-    <div className="mt-3">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-fr-muted">{label}</div>
-      <p className="mt-0.5 break-words rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-white/85">{value}</p>
+    <div className="flex">
+      <div className="flex w-9 shrink-0 justify-center bg-[#e3e4e6] pt-3 text-[#4a4b4f]">
+        <Icon size={20} strokeWidth={1.5} />
+      </div>
+      <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-3 gap-y-2.5 bg-[#f6f6f7] px-3 py-2.5">{children}</div>
     </div>
   );
 }
 
-function ActionButton({ icon, label, onClick, active }: { icon: ReactNode; label: string; onClick: () => void; active?: boolean }) {
+function Field({ label, value, wide, mono }: { label: ReactNode; value: string; wide?: boolean; mono?: boolean }) {
   return (
-    <button onClick={onClick} className={`flex flex-col items-center gap-1 py-2.5 hover:bg-white/5 hover:text-white ${active ? "text-fr-yellow" : ""}`}>
+    <div className={`min-w-0 ${wide ? "col-span-2" : ""}`}>
+      <div className="text-[11px] uppercase tracking-wide text-[#6b6c70]">{label}</div>
+      <div className={`break-words text-[#26272a] ${mono ? "font-mono text-[11px] leading-relaxed" : "text-[15px]"}`}>{value}</div>
+    </div>
+  );
+}
+
+// ---- Action bar ----------------------------------------------------------------
+
+function ActionBar({ d }: { d: FlightDetail }) {
+  const follow = useStore((s) => s.follow);
+  const showRoute = useStore((s) => s.showRoute);
+  const [shared, setShared] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menu) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setMenu(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [menu]);
+
+  const share = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) await navigator.share({ title: d.callsign, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        setShared(true);
+        setTimeout(() => setShared(false), 1500);
+      }
+    } catch {}
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      {menu && (
+        <div className="absolute bottom-full right-2 mb-2 w-60 overflow-hidden rounded-lg bg-[#2a2b2e] py-1 text-[13px] text-white shadow-2xl ring-1 ring-white/10">
+          {d.origin && (
+            <MenuLink href={`/airport/${d.origin.icao}`} icon={<MapPin size={15} />}>
+              Departure airport · {d.origin.iata || d.origin.icao}
+            </MenuLink>
+          )}
+          {d.destination && (
+            <MenuLink href={`/airport/${d.destination.icao}`} icon={<MapPin size={15} />}>
+              Arrival airport · {d.destination.iata || d.destination.icao}
+            </MenuLink>
+          )}
+          {d.flightPlan?.route && (
+            <button
+              onClick={() => {
+                navigator.clipboard?.writeText(d.flightPlan!.route).catch(() => {});
+                setMenu(false);
+              }}
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-white/5"
+            >
+              <Copy size={15} /> Copy flight plan route
+            </button>
+          )}
+          <a href={`https://stats.vatsim.net/stats/${d.cid}`} target="_blank" rel="noreferrer" className="flex items-center gap-2.5 px-3 py-2 hover:bg-white/5">
+            <ExternalLink size={15} /> Pilot&apos;s VATSIM statistics
+          </a>
+        </div>
+      )}
+      <nav className="grid grid-cols-4 bg-[#2a2b2e] text-[11px]">
+        <Action active={showRoute} onClick={() => setState({ showRoute: !showRoute })} icon={<RouteGlyph />} label="Route" />
+        <Action active={follow} onClick={() => setState({ follow: !follow })} icon={<FollowGlyph />} label="Follow" />
+        <Action onClick={share} icon={<Share size={21} strokeWidth={1.5} />} label={shared ? "Copied!" : "Share"} active={shared} />
+        <Action onClick={() => setMenu(!menu)} icon={<MoreHorizontal size={22} strokeWidth={1.5} />} label="More" active={menu} />
+      </nav>
+    </div>
+  );
+}
+
+function MenuLink({ href, icon, children }: { href: string; icon: ReactNode; children: ReactNode }) {
+  return (
+    <Link href={href} className="flex items-center gap-2.5 px-3 py-2 hover:bg-white/5">
+      {icon}
+      {children}
+    </Link>
+  );
+}
+
+function Action({ icon, label, onClick, active }: { icon: ReactNode; label: string; onClick: () => void; active?: boolean }) {
+  return (
+    <button onClick={onClick} className={`flex flex-col items-center gap-0.5 py-2 ${active ? "text-fr-yellow" : "text-white/90 hover:text-white"}`}>
       {icon}
       {label}
     </button>
   );
 }
 
-function ArrivalIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M2 22h20" />
-      <path d="M3.77 10.77 2 9l2-4.5 1.1.55c.55.28.9.84.9 1.45s.35 1.17.9 1.45L8 8.5l3-6 1.05.53a2 2 0 0 1 1.09 1.52l.72 5.4a2 2 0 0 0 1.09 1.52l4.4 2.2c.42.22.78.55 1.01.96l.6 1.03c.49.88-.06 1.98-1.06 2.1l-1.18.15c-.47.06-.95-.02-1.37-.24L4.29 11.15a2 2 0 0 1-.52-.38Z" />
-    </svg>
-  );
-}
+// ---- Glyphs ------------------------------------------------------------------
+
+const RouteGlyph = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden>
+    <circle cx="6" cy="5" r="2.2" />
+    <circle cx="18" cy="19" r="2.2" />
+    <path d="M7.5 6.7c3 4 6.5 5.5 9 10.6" />
+  </svg>
+);
+
+const FollowGlyph = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M3 3l6 6M9 4v5H4M21 3l-6 6M15 4v5h5M3 21l6-6M9 20v-5H4M21 21l-6-6M15 20v-5h5" />
+  </svg>
+);
+
+const InfoPlaneIcon = () => (
+  <svg width="26" height="20" viewBox="0 0 30 22" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M2 6l3 1 3 3 8-4 6 1-6 3-3 6-2-1 1-4-4 1-2 3-1-1 1-3-4-2z" />
+    <circle cx="23" cy="15" r="5.5" />
+    <path d="M23 13.2v4.2M23 11.3v.1" />
+  </svg>
+);
 
 const WAKE: Record<string, string> = { L: "Light", M: "Medium", H: "Heavy", J: "Super" };
-const wake = (w: string | null) => (w ? WAKE[w] ?? w : "—");
 
 function hhmm(v: string | undefined): number | null {
   if (!v || !/^\d{1,4}$/.test(v)) return null;
