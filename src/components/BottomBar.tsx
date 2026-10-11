@@ -1,6 +1,7 @@
 "use client";
 
 import { CloudSunRain, Filter, LayoutPanelLeft, Settings, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useMemo, type ReactNode } from "react";
 import {
   activeFilterCount,
@@ -18,19 +19,21 @@ export function BottomBar() {
   const filters = useStore((s) => s.filters);
   const nFilters = activeFilterCount(filters);
   const weather = useStore((s) => s.settings.weather);
+  // On phones the flight/airport sheet takes the bottom of the screen
+  const panelOpen = usePathname() !== "/";
   const toggle = (p: NonNullable<typeof panel>) => setState({ panel: panel === p ? null : p });
 
   return (
     <>
       {panel && (
-        <div className="fr-scroll pointer-events-auto absolute bottom-[72px] left-1/2 z-30 max-h-[calc(100%-150px)] w-[min(420px,calc(100%-24px))] -translate-x-1/2 overflow-y-auto rounded-xl bg-fr-panel shadow-2xl ring-1 ring-white/10">
+        <div className="fr-scroll pointer-events-auto absolute bottom-[calc(env(safe-area-inset-bottom)+72px)] left-1/2 z-30 max-h-[calc(100%-150px)] w-[min(420px,calc(100%-24px))] -translate-x-1/2 overflow-y-auto rounded-xl bg-fr-panel shadow-2xl ring-1 ring-white/10">
           {panel === "settings" && <SettingsPanel />}
           {panel === "filters" && <FiltersPanel />}
           {panel === "widgets" && <WidgetsPanel />}
         </div>
       )}
 
-      <div className="pointer-events-auto absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-stretch gap-0.5 rounded-xl bg-[#3a3b3e]/90 px-1.5 py-1 shadow-xl backdrop-blur">
+      <div className={`pointer-events-auto absolute bottom-safe-3 left-1/2 z-30 -translate-x-1/2 ${panelOpen ? "hidden sm:flex" : "flex"} items-stretch gap-0.5 rounded-xl bg-[#3a3b3e]/90 px-1.5 py-1 shadow-xl backdrop-blur`}>
         <BarButton icon={<Settings size={22} strokeWidth={1.6} />} label="Settings" active={panel === "settings"} onClick={() => toggle("settings")} />
         <BarButton
           icon={<CloudSunRain size={22} strokeWidth={1.6} />}

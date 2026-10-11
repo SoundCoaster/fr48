@@ -11,7 +11,18 @@ type Item =
   | { kind: "airport"; key: string; data: SearchResults["airports"][number] }
   | { kind: "airline"; key: string; data: SearchResults["airlines"][number] };
 
-export function Search({ className = "", variant = "dark" }: { className?: string; variant?: "dark" | "light" }) {
+export function Search({
+  className = "",
+  variant = "dark",
+  autoFocus = false,
+  onDone,
+}: {
+  className?: string;
+  variant?: "dark" | "light";
+  autoFocus?: boolean;
+  /** Called after a result is chosen (e.g. to close the mobile search). */
+  onDone?: () => void;
+}) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -73,6 +84,7 @@ export function Search({ className = "", variant = "dark" }: { className?: strin
     setOpen(false);
     setQ("");
     input.current?.blur();
+    onDone?.();
     if (it.kind === "flight") router.push(`/${encodeURIComponent(it.data.callsign)}`);
     else if (it.kind === "airport") router.push(`/airport/${it.data.icao}`);
     else {
@@ -178,6 +190,7 @@ export function Search({ className = "", variant = "dark" }: { className?: strin
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
+          autoFocus={autoFocus}
           placeholder="Find flights, airports and more"
           className={`min-w-0 flex-1 bg-transparent outline-none ${
             variant === "light" ? "text-[14px] text-[#1b1c1e] placeholder:text-[#8a8d93]" : "text-sm text-white placeholder:text-fr-muted"

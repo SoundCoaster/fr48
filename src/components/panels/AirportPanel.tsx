@@ -50,7 +50,7 @@ export function AirportPanel({ params }: { params: Promise<{ code: string }> }) 
   }, [a]);
 
   return (
-    <aside className="fr-slide-in pointer-events-auto absolute bottom-[72px] left-0 top-0 z-30 flex w-full flex-col overflow-hidden bg-[#2a2b2e] shadow-2xl sm:bottom-auto sm:left-3 sm:top-3 sm:max-h-[calc(100%-88px)] sm:w-[320px] sm:rounded-xl">
+    <aside className="fr-slide-in pointer-events-auto absolute inset-x-0 bottom-0 top-[20%] z-30 flex flex-col overflow-hidden rounded-t-xl bg-[#2a2b2e] pb-safe shadow-2xl sm:bottom-auto sm:left-3 sm:right-auto sm:top-3 sm:max-h-[calc(100%-88px)] sm:w-[320px] sm:rounded-xl sm:pb-0">
       {!data || !a ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-sm text-fr-muted">
           {loading && !error ? <Loader2 className="animate-spin" /> : <p>Airport {code} not found.</p>}

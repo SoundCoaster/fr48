@@ -2,6 +2,7 @@
 
 import {
   ChevronDown,
+  ChevronUp,
   Copy,
   ExternalLink,
   Gauge,
@@ -40,7 +41,8 @@ export function FlightPanel({ params }: { params: Promise<{ callsign: string }> 
   }, [detail]);
 
   return (
-    <aside className="fr-slide-in pointer-events-auto absolute bottom-[72px] left-0 top-0 z-30 flex w-full flex-col overflow-hidden bg-[#2a2b2e] shadow-2xl sm:bottom-auto sm:left-3 sm:top-3 sm:max-h-[calc(100%-88px)] sm:w-[340px] sm:rounded-xl">
+    <>
+    <aside className="fr-slide-in pointer-events-auto absolute left-3 top-3 z-30 hidden max-h-[calc(100%-88px)] w-[340px] flex-col overflow-hidden rounded-xl bg-[#2a2b2e] shadow-2xl sm:flex">
       {!detail ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-sm text-fr-muted">
           {loading && !error ? (
@@ -60,6 +62,132 @@ export function FlightPanel({ params }: { params: Promise<{ callsign: string }> 
         <FlightContent detail={detail} onClose={() => router.push("/")} />
       )}
     </aside>
+    {detail ? (
+      <MobileSheet detail={detail} onClose={() => router.push("/")} />
+    ) : (
+      <div className="pointer-events-auto absolute inset-x-0 bottom-0 z-30 flex min-h-28 items-center justify-center gap-3 rounded-t-xl bg-[#2a2b2e] px-4 pb-safe text-sm text-fr-muted sm:hidden">
+        {loading && !error ? (
+          <Loader2 className="animate-spin" />
+        ) : (
+          <>
+            <span>
+              <b className="text-white">{callsign}</b> is not online on VATSIM.
+            </span>
+            <button onClick={() => router.push("/")} className="rounded-full bg-white/10 px-3 py-1 text-white">
+              Close
+            </button>
+          </>
+        )}
+      </div>
+    )}
+    </>
+  );
+}
+
+// ---- Phones: compact bottom sheet (FR24 app layout) ----------------------------
+
+function MobileSheet({ detail: d, onClose }: { detail: FlightDetail; onClose: () => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const s = useStore((st) => st.settings);
+  const follow = useStore((st) => st.follow);
+  const showRoute = useStore((st) => st.showRoute);
+  const now = useNow(15000) ?? 0;
+
+  if (expanded) {
+    return (
+      <div className="pointer-events-auto absolute inset-0 z-40 flex flex-col bg-[#2a2b2e] pt-safe pb-safe sm:hidden">
+        <button onClick={() => setExpanded(false)} className="flex items-center justify-center gap-1.5 py-1.5 text-[12px] text-white/70">
+          <ChevronDown size={16} /> Less info
+        </button>
+        <FlightContent detail={d} onClose={onClose} />
+      </div>
+    );
+  }
+
+  const p = d.progress;
+  const code = (a: MiniAirport | null, raw?: string) => (a ? a.iata || a.icao : raw || "—");
+  return (
+    <div className="fr-slide-up pointer-events-auto absolute inset-x-0 bottom-0 z-30 overflow-hidden rounded-t-xl bg-[#2a2b2e] pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.35)] sm:hidden">
+      <button onClick={() => setExpanded(true)} className="flex w-full items-stretch text-left">
+        <div className="min-w-0 flex-1 px-3 py-2.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[19px] font-medium leading-none text-fr-yellow">{d.callsign}</span>
+            {d.flightNumber && <span className="rounded-[3px] bg-[#5a5b5f] px-1 text-[11px] font-semibold leading-[17px] text-white">{d.flightNumber}</span>}
+            {d.aircraft.code && <span className="rounded-[3px] bg-[#2f5d86] px-1 text-[11px] font-semibold leading-[17px] text-white">{d.aircraft.code}</span>}
+          </div>
+          <div className="mt-1.5 truncate text-[15px] text-white/90">{d.airline?.name ?? "Private / unknown operator"}</div>
+        </div>
+        <div className="w-[36%] shrink-0">
+          <AircraftPhoto registration={d.aircraft.registration} silhouette={d.aircraft.silhouette} airline={d.airline?.name} compact />
+        </div>
+      </button>
+
+      <div className="grid grid-cols-[1fr_118px] gap-1.5 bg-[#d5d6d8] p-1.5">
+        <div className="rounded-md bg-[#ececed] px-2.5 pb-2 pt-2">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center">
+            <div className="min-w-0 text-center">
+              <div className="text-[24px] font-medium leading-none text-[#3a3a3c]">{code(d.origin, d.flightPlan?.departure)}</div>
+              <div className="mt-1 truncate text-[11px] font-medium uppercase tracking-wide text-[#3a3a3c]">{d.origin?.city ?? ""}</div>
+            </div>
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-white">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#f2c12e" aria-hidden>
+                <path d={PLANE_PATH} transform="rotate(90 12 12)" />
+              </svg>
+            </span>
+            <div className="min-w-0 text-center">
+              <div className="text-[24px] font-medium leading-none text-[#3a3a3c]">{code(d.destination, d.flightPlan?.arrival)}</div>
+              <div className="mt-1 truncate text-[11px] font-medium uppercase tracking-wide text-[#3a3a3c]">{d.destination?.city ?? ""}</div>
+            </div>
+          </div>
+          {p && (
+            <>
+              <div className="mt-2 h-[3px] rounded-full bg-[#cfd0d3]">
+                <div className="h-full rounded-full bg-fr-yellow" style={{ width: `${p.pct}%` }} />
+              </div>
+              <div className="mt-1.5 flex justify-between gap-2 text-[11px] text-[#55565a] tabular">
+                <span className="truncate">{d.times.actualDeparture && now ? `Departed ${fmtHM(now - d.times.actualDeparture)} ago` : "Not departed"}</span>
+                <span className="truncate">
+                  {d.status === "landed" ? "Landed" : d.times.estimatedArrival && now ? `Arrives in ${fmtHM(d.times.estimatedArrival - now)}` : ""}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+        <div className="space-y-2 rounded-md bg-[#ececed] px-2.5 py-2">
+          <MiniStat label="Altitude" value={fmtAltitude(d.position.altitude, s.altitudeUnit)} />
+          <MiniStat label="Ground speed" value={fmtSpeed(d.position.groundspeed, s.speedUnit)} />
+        </div>
+        <div className="truncate rounded-md bg-[#ececed] px-2.5 py-2 text-[15px] text-[#26272a]">{d.aircraft.name}</div>
+        <div className="flex items-baseline gap-1.5 truncate rounded-md bg-[#ececed] px-2.5 py-2">
+          <span className="text-[10px] uppercase tracking-wide text-[#6b6c70]">Reg.</span>
+          <span className="truncate text-[15px] text-[#26272a]">{d.aircraft.registration ?? "—"}</span>
+        </div>
+      </div>
+
+      <nav className="grid grid-cols-4 bg-[#2a2b2e] text-[11px]">
+        <Action active={showRoute} onClick={() => setState({ showRoute: !showRoute })} icon={<RouteGlyph />} label="Route" />
+        <Action onClick={() => setExpanded(true)} icon={<ChevronUp size={22} strokeWidth={1.5} />} label="More info" />
+        <Action active={follow} onClick={() => setState({ follow: !follow })} icon={<FollowGlyph />} label="Follow" />
+        <Action
+          onClick={() => {
+            const url = window.location.href;
+            if (navigator.share) navigator.share({ title: d.callsign, url }).catch(() => {});
+            else navigator.clipboard?.writeText(url).catch(() => {});
+          }}
+          icon={<Share size={21} strokeWidth={1.5} />}
+          label="Share"
+        />
+      </nav>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wide text-[#6b6c70]">{label}</div>
+      <div className="truncate text-[15px] text-[#26272a] tabular">{value}</div>
+    </div>
   );
 }
 

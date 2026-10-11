@@ -11,12 +11,19 @@ export const metadata: Metadata = {
     template: "%s | Flightradar48",
   },
   description: "Track VATSIM flights in real time on a live map. Flight status, routes, airport arrivals and departures.",
+  applicationName: "Flightradar48",
+  appleWebApp: { capable: true, title: "Flightradar48", statusBarStyle: "black-translucent" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
   themeColor: "#1b1c1e",
   width: "device-width",
   initialScale: 1,
+  // App-like on phones: the map handles pinch-zoom, content runs under the notch
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

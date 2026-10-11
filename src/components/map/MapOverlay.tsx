@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, Menu, X } from "lucide-react";
+import { Check, ChevronDown, Menu, Search as SearchIcon, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/Logo";
@@ -24,8 +24,35 @@ function useClickOutside<T extends HTMLElement>(open: boolean, close: () => void
 
 /** Floating chrome over the live map: centred logo, search, menu and view picker. */
 export function MapOverlay() {
+  const [mobileSearch, setMobileSearch] = useState(false);
   return (
     <>
+      {/* Phones: centred logo, search behind a button, menu on the right (FR24 app layout) */}
+      <div className="pointer-events-auto absolute inset-x-3 top-safe-3 z-30 flex h-10 items-center justify-between sm:hidden">
+        {mobileSearch ? (
+          <div className="flex w-full items-center gap-2">
+            <Search variant="light" autoFocus onDone={() => setMobileSearch(false)} className="min-w-0 flex-1" />
+            <button onClick={() => setMobileSearch(false)} className="px-1 text-[14px] text-white drop-shadow">
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={() => setMobileSearch(true)}
+              aria-label="Search"
+              className="grid h-10 w-10 place-items-center rounded-full bg-[#3a3b3e]/90 text-white shadow-md backdrop-blur"
+            >
+              <SearchIcon size={19} />
+            </button>
+            <Link href="/" aria-label="Flightradar48 home" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.6)]">
+              <Logo height={30} />
+            </Link>
+            <MainMenu />
+          </>
+        )}
+      </div>
+
       <Link
         href="/"
         aria-label="Flightradar48 home"
@@ -33,8 +60,8 @@ export function MapOverlay() {
       >
         <Logo height={36} />
       </Link>
-      <div className="pointer-events-auto absolute right-3 top-3 z-30 flex w-[calc(100%-24px)] flex-col items-end gap-2 sm:w-auto">
-        <div className="flex w-full items-center gap-2 sm:w-auto">
+      <div className="pointer-events-auto absolute right-3 top-3 z-30 hidden flex-col items-end gap-2 sm:flex">
+        <div className="flex items-center gap-2">
           <Search variant="light" className="min-w-0 flex-1 sm:w-[340px] sm:flex-none" />
           <MainMenu />
         </div>

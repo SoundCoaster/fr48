@@ -123,6 +123,20 @@ body {
   animation: fr-slide-in 0.22s ease-out;
 }
 
+@keyframes fr-slide-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.fr-slide-up {
+  animation: fr-slide-up 0.22s ease-out;
+}
+
 @keyframes fr-pulse {
   0%,
   100% {
@@ -134,4 +148,23 @@ body {
 }
 .fr-live-dot {
   animation: fr-pulse 1.6s ease-in-out infinite;
+}
+
+/* Safe areas for the installed (standalone) app on notched phones */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.top-safe-3 {
+  top: calc(env(safe-area-inset-top) + 12px);
+}
+.bottom-safe-3 {
+  bottom: calc(env(safe-area-inset-bottom) + 12px);
+}
+html,
+body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
 }
