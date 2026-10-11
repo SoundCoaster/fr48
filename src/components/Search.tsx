@@ -164,11 +164,11 @@ export function Search({ className = "", variant = "dark" }: { className?: strin
       <div
         className={
           variant === "light"
-            ? "flex h-11 items-center gap-3 rounded-lg bg-white px-3.5 shadow-lg ring-2 ring-transparent transition focus-within:ring-fr-yellow"
+            ? "flex h-9 items-center gap-2.5 rounded-md bg-white px-3 shadow-md ring-2 ring-transparent transition focus-within:ring-fr-yellow"
             : "flex h-9 items-center gap-2 rounded-full bg-white/[0.08] px-3.5 ring-1 ring-white/5 transition focus-within:bg-white/[0.12] focus-within:ring-fr-yellow/60"
         }
       >
-        <SearchIcon size={variant === "light" ? 20 : 16} className={`shrink-0 ${variant === "light" ? "text-[#8a8d93]" : "text-fr-muted"}`} />
+        <SearchIcon size={16} className={`shrink-0 ${variant === "light" ? "text-[#8a8d93]" : "text-fr-muted"}`} />
         <input
           ref={input}
           value={q}
@@ -180,7 +180,7 @@ export function Search({ className = "", variant = "dark" }: { className?: strin
           onKeyDown={onKeyDown}
           placeholder="Find flights, airports and more"
           className={`min-w-0 flex-1 bg-transparent outline-none ${
-            variant === "light" ? "text-[17px] text-[#1b1c1e] placeholder:text-[#8a8d93]" : "text-sm text-white placeholder:text-fr-muted"
+            variant === "light" ? "text-[14px] text-[#1b1c1e] placeholder:text-[#8a8d93]" : "text-sm text-white placeholder:text-fr-muted"
           }`}
           spellCheck={false}
           autoComplete="off"
@@ -192,7 +192,7 @@ export function Search({ className = "", variant = "dark" }: { className?: strin
           </button>
         )}
         {!q && variant === "light" && (
-          <kbd className="grid h-6 w-6 place-items-center rounded border border-[#9a9da3] font-sans text-[13px] text-[#8a8d93]">/</kbd>
+          <kbd className="grid h-[18px] w-[18px] place-items-center rounded-[3px] border border-[#9a9da3] font-sans text-[11px] text-[#8a8d93]">/</kbd>
         )}
       </div>
       {showDropdown && (

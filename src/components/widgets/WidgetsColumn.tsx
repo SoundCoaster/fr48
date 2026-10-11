@@ -31,7 +31,7 @@ export function WidgetsColumn() {
   const widgets = useStore((s) => s.settings.widgets);
   if (pathname !== "/" || !(widgets.tracked || widgets.airports || widgets.bookmarks)) return null;
   return (
-    <div className="fr-scroll pointer-events-auto absolute bottom-[80px] left-3 top-3 z-20 hidden w-[340px] flex-col gap-3 overflow-y-auto sm:flex">
+    <div className="fr-scroll pointer-events-auto absolute bottom-[80px] left-3 top-3 z-20 hidden w-[290px] flex-col gap-2 overflow-y-auto sm:flex">
       {widgets.tracked && <MostTracked />}
       {widgets.airports && <BusiestAirports />}
       {widgets.bookmarks && <Bookmarks />}
@@ -59,23 +59,23 @@ function WidgetCard({
   const [open, setOpen] = useState(id !== "bookmarks");
   return (
     <section className="shrink-0 overflow-hidden rounded-xl bg-[#2a2b2e]/95 shadow-xl ring-1 ring-black/20 backdrop-blur">
-      <header className="flex items-center gap-2.5 bg-[#38393c] px-4 py-3">
-        <h2 className="text-[17px] font-medium text-white">{title}</h2>
-        {live && <span className="rounded-[3px] bg-fr-yellow px-1.5 py-px text-[11px] font-bold tracking-wide text-black">LIVE</span>}
+      <header className="flex items-center gap-2 bg-[#38393c] px-3 py-2">
+        <h2 className="text-[14px] font-medium text-white">{title}</h2>
+        {live && <span className="rounded-[3px] bg-fr-yellow px-1 py-px text-[9.5px] font-bold tracking-wide text-black">LIVE</span>}
         <span title={help} className="text-white/45">
-          <CircleHelp size={18} />
+          <CircleHelp size={14} />
         </span>
         <button
           onClick={() => setOpen(!open)}
           className="ml-auto rounded p-1 text-white/80 hover:bg-white/10"
           aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
         >
-          <ChevronDown size={20} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+          <ChevronDown size={16} className={`transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
       </header>
       {open && (
         <>
-          <div className="space-y-2 p-3">{children}</div>
+          <div className="space-y-1.5 p-2">{children}</div>
           {footer}
         </>
       )}
@@ -85,7 +85,7 @@ function WidgetCard({
 
 const Badge = ({ children, tone = "grey" }: { children: ReactNode; tone?: "grey" | "blue" | "outline" }) => (
   <span
-    className={`inline-flex items-center rounded px-1.5 text-[12px] font-semibold leading-[20px] ${
+    className={`inline-flex items-center rounded-[3px] px-1 text-[10.5px] font-semibold leading-[16px] ${
       tone === "blue" ? "bg-[#2f6aa3] text-white" : tone === "outline" ? "text-white/85 ring-1 ring-white/30" : "bg-[#5a5b5f] text-white"
     }`}
   >
@@ -95,11 +95,11 @@ const Badge = ({ children, tone = "grey" }: { children: ReactNode; tone?: "grey"
 
 const Row = ({ children, href }: { children: ReactNode; href?: string }) =>
   href ? (
-    <Link href={href} className="block rounded-lg bg-[#3a3b3f] px-3.5 py-2.5 transition hover:bg-[#45464a]">
+    <Link href={href} className="block rounded-md bg-[#3a3b3f] px-2.5 py-2 transition hover:bg-[#45464a]">
       {children}
     </Link>
   ) : (
-    <div className="rounded-lg bg-[#3a3b3f] px-3.5 py-2.5">{children}</div>
+    <div className="rounded-md bg-[#3a3b3f] px-2.5 py-2">{children}</div>
   );
 
 const Empty = ({ children }: { children: ReactNode }) => <p className="px-1 py-3 text-center text-sm text-white/50">{children}</p>;
@@ -125,17 +125,17 @@ function TrackedRow({ rank, f }: { rank: number; f: TrackedFlight }) {
   return (
     <Row href={`/${encodeURIComponent(f.callsign)}`}>
       <div className="flex items-center gap-2">
-        <span className="text-[19px] font-medium text-white">
+        <span className="text-[15px] font-medium text-white">
           {rank}. {f.callsign}
         </span>
         {f.flightNumber && <Badge>{f.flightNumber}</Badge>}
         {f.type && <Badge tone="blue">{f.type}</Badge>}
-        <span className="ml-auto flex items-center gap-1.5 text-[17px] font-medium text-fr-yellow tabular">
+        <span className="ml-auto flex items-center gap-1 text-[14px] font-medium text-fr-yellow tabular">
           {f.viewers.toLocaleString("en-US")}
-          <Users size={17} />
+          <Users size={14} />
         </span>
       </div>
-      <div className="mt-1 flex items-center gap-1.5 truncate text-[16px] text-white/90">
+      <div className="mt-0.5 flex items-center gap-1 truncate text-[13px] text-white/90">
         {f.origin ? (
           <>
             {f.origin.city} <Badge tone="outline">{f.origin.code}</Badge>
@@ -167,7 +167,7 @@ function BusiestAirports() {
       live
       help="Airports with the most VATSIM arrivals and departures right now"
       footer={
-        <Link href="/data/airports" className="block border-t border-white/5 py-3 text-center text-[16px] text-[#4aa3ff] hover:underline">
+        <Link href="/data/airports" className="block border-t border-white/5 py-2 text-center text-[13px] text-[#4aa3ff] hover:underline">
           All airports
         </Link>
       }
@@ -217,20 +217,20 @@ function AirportRow({ a }: { a: BusyAirport }) {
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate text-[19px] font-medium text-white">{a.city}</span>
+            <span className="truncate text-[15px] font-medium text-white">{a.city}</span>
             <Badge tone="outline">{a.iata || a.icao}</Badge>
           </div>
-          <div className="mt-1 flex h-6 items-center gap-2 text-[16px] text-white/90">
+          <div className="mt-0.5 flex h-5 items-center gap-1.5 text-[13px] text-white/90">
             {metar ? (
               <>
-                {Sky && <Sky size={20} className="text-white/85" />}
+                {Sky && <Sky size={16} className="text-white/85" />}
                 {metar.temperature !== null && <span className="tabular">{metar.temperature}°C</span>}
-                <span className="h-5 w-px bg-white/25" />
+                <span className="h-4 w-px bg-white/25" />
                 {metar.windKt !== null && metar.windKt > 0 ? (
                   <span className="flex items-center gap-1 tabular">
                     {metar.windDir !== null && (
                       // Arrow points where the wind blows to
-                      <ArrowUp size={16} style={{ transform: `rotate(${metar.windDir + 180}deg)` }} />
+                      <ArrowUp size={13} style={{ transform: `rotate(${metar.windDir + 180}deg)` }} />
                     )}
                     {metar.windDir !== null ? `${metar.windDir}°` : "VRB"} {metar.windKt} kts
                   </span>
@@ -243,7 +243,7 @@ function AirportRow({ a }: { a: BusyAirport }) {
             )}
           </div>
         </div>
-        <div className="space-y-1 text-[17px] font-medium tabular">
+        <div className="space-y-0.5 text-[14px] font-medium tabular">
           <TrafficCount icon={<ArrivalGlyph />} n={a.arrivals} label="arrivals" />
           <TrafficCount icon={<DepartureGlyph />} n={a.departures} label="departures" />
         </div>
@@ -256,21 +256,21 @@ function TrafficCount({ icon, n, label }: { icon: ReactNode; n: number; label: s
   return (
     <div className="flex items-center justify-end gap-2" title={`${n} ${label}`}>
       <span className="text-white/85">{icon}</span>
-      <span className={`h-2.5 w-2.5 rounded-full ${levelColor(n)}`} />
-      <span className="w-7 text-right text-white">{n}</span>
+      <span className={`h-2 w-2 rounded-full ${levelColor(n)}`} />
+      <span className="w-6 text-right text-white">{n}</span>
     </div>
   );
 }
 
 const ArrivalGlyph = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="M2 21h20" />
     <path d="M3.8 10.8 2 9l2-4.5 1.1.6c.5.3.9.8.9 1.4s.4 1.2.9 1.5L8 8.5l3-6 1 .5a2 2 0 0 1 1.1 1.5l.7 5.4a2 2 0 0 0 1.1 1.5l4.4 2.2c.4.2.8.6 1 1l.6 1c.5.9-.1 2-1.1 2.1l-1.2.2c-.5 0-1-.1-1.4-.3L4.3 11.2a2 2 0 0 1-.5-.4Z" />
   </svg>
 );
 
 const DepartureGlyph = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="M2 21h20" />
     <path d="M6.4 17 2 12.6l1.5-1.4 2.7 1.2 3.4-3.4-6-4.5 1.9-1.9 8 2.6 3.5-3.5a2 2 0 0 1 2.8 2.8l-3.5 3.5 2.6 8-1.9 1.9-4.5-6-3.4 3.4 1.2 2.7z" />
   </svg>
@@ -291,12 +291,12 @@ function Bookmarks() {
           const href = b.kind === "flight" ? `/${encodeURIComponent(b.id)}` : `/airport/${b.id}`;
           const isLive = b.kind === "airport" || live.has(b.id);
           return (
-            <div key={`${b.kind}:${b.id}`} className="flex items-center gap-2 rounded-lg bg-[#3a3b3f] pr-2">
-              <Link href={href} className={`flex min-w-0 flex-1 items-center gap-3 px-3.5 py-2.5 ${isLive ? "" : "opacity-50"}`}>
-                {b.kind === "flight" ? <Plane size={18} className="text-fr-yellow" /> : <MapPin size={18} className="text-[#4aa3ff]" />}
+            <div key={`${b.kind}:${b.id}`} className="flex items-center gap-2 rounded-md bg-[#3a3b3f] pr-1.5">
+              <Link href={href} className={`flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-2 ${isLive ? "" : "opacity-50"}`}>
+                {b.kind === "flight" ? <Plane size={15} className="text-fr-yellow" /> : <MapPin size={15} className="text-[#4aa3ff]" />}
                 <span className="min-w-0">
-                  <span className="block truncate text-[16px] font-medium text-white">{b.label}</span>
-                  <span className="block truncate text-[13px] text-white/60">
+                  <span className="block truncate text-[13px] font-medium text-white">{b.label}</span>
+                  <span className="block truncate text-[11px] text-white/60">
                     {b.kind === "flight" && !isLive ? "Not online" : b.sub}
                   </span>
                 </span>

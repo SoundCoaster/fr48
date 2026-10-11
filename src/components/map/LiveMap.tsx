@@ -378,11 +378,9 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       map.getCanvas().style.cursor = "pointer";
       const p = f.properties as { cs: string };
       if (hoverCs !== p.cs) map.setFilter("flights-hover", ["==", ["get", "cs"], p.cs]);
+      if (hoverCs !== p.cs) tip.textContent = p.cs;
       hoverCs = p.cs;
-      const { x, y } = map.project((f.geometry as GeoJSON.Point).coordinates as [number, number]);
-      tip.textContent = p.cs;
-      tip.style.transform = `translate(${x}px, ${y - 22}px) translate(-50%, -100%)`;
-      tip.style.opacity = p.cs === selectedRef.current ? "0" : "1";
+      // Position is updated every animation frame so the bubble follows the aircraft
     });
     map.on("mouseleave", "flights", () => {
       map.getCanvas().style.cursor = "";
@@ -437,7 +435,12 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
         selLabel.style.transform = `translate(${x}px, ${y - 22}px) translate(-50%, -100%)`;
         selLabel.style.opacity = "1";
       } else selLabel.style.opacity = "0";
-      if (hoverCs && hoverCs === selectedRef.current) tip.style.opacity = "0";
+      const hoverNow = hoverCs && hoverCs !== selectedRef.current ? displayRef.current.get(hoverCs) : undefined;
+      if (hoverNow) {
+        const { x, y } = map.project([hoverNow.lon, hoverNow.lat]);
+        tip.style.transform = `translate(${x}px, ${y - 22}px) translate(-50%, -100%)`;
+        tip.style.opacity = "1";
+      } else if (tip.style.opacity !== "0") tip.style.opacity = "0";
       const aptIcao = hoverApt ?? selectedAirportRef.current;
       const aptRow = aptIcao ? findAirport(aptIcao) : undefined;
       if (aptRow) placeAptLabel(aptRow);

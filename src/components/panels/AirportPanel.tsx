@@ -50,7 +50,7 @@ export function AirportPanel({ params }: { params: Promise<{ code: string }> }) 
   }, [a]);
 
   return (
-    <aside className="fr-slide-in pointer-events-auto absolute bottom-[72px] left-0 top-0 z-30 flex w-full flex-col overflow-hidden bg-[#2a2b2e] shadow-2xl sm:bottom-auto sm:left-3 sm:top-3 sm:max-h-[calc(100%-88px)] sm:w-[360px] sm:rounded-xl">
+    <aside className="fr-slide-in pointer-events-auto absolute bottom-[72px] left-0 top-0 z-30 flex w-full flex-col overflow-hidden bg-[#2a2b2e] shadow-2xl sm:bottom-auto sm:left-3 sm:top-3 sm:max-h-[calc(100%-88px)] sm:w-[320px] sm:rounded-xl">
       {!data || !a ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-sm text-fr-muted">
           {loading && !error ? <Loader2 className="animate-spin" /> : <p>Airport {code} not found.</p>}
@@ -58,22 +58,22 @@ export function AirportPanel({ params }: { params: Promise<{ code: string }> }) 
       ) : (
         <>
           <Header data={data} onClose={() => router.push("/")} />
-          <div className="fr-scroll flex-1 space-y-2 overflow-y-auto bg-[#d5d6d8] p-2">
+          <div className="fr-scroll flex-1 space-y-1.5 overflow-y-auto bg-[#d5d6d8] p-1.5">
             {tab === "general" && <General data={data} />}
             {tab === "dep" && <LightBoard entries={data.departures} kind="dep" tz={a.tz} />}
             {tab === "arr" && <LightBoard entries={data.arrivals} kind="arr" tz={a.tz} />}
             {tab === "ground" && <LightBoard entries={data.onGround} kind="dep" tz={a.tz} ground />}
           </div>
-          <nav className="grid grid-cols-5 bg-[#2a2b2e] text-[13px]">
-            <TabButton active={tab === "general"} onClick={() => setTab("general")} icon={<MapPin size={24} strokeWidth={1.6} />} label="General" />
+          <nav className="grid grid-cols-5 bg-[#2a2b2e] text-[11px]">
+            <TabButton active={tab === "general"} onClick={() => setTab("general")} icon={<MapPin size={19} strokeWidth={1.6} />} label="General" />
             <TabButton active={tab === "dep"} onClick={() => setTab("dep")} icon={<DepIcon />} label="Departures" />
             <TabButton active={tab === "arr"} onClick={() => setTab("arr")} icon={<ArrIcon />} label="Arrivals" />
             <TabButton active={tab === "ground"} onClick={() => setTab("ground")} icon={<GroundIcon />} label="On ground" />
             <Link
               href={`/data/airports/${(a.iata || a.icao).toLowerCase()}`}
-              className="flex flex-col items-center gap-1 py-2.5 text-white/85 hover:text-white"
+              className="flex flex-col items-center gap-0.5 py-2 text-white/85 hover:text-white"
             >
-              <ExternalLink size={24} strokeWidth={1.6} />
+              <ExternalLink size={19} strokeWidth={1.6} />
               More
             </Link>
           </nav>
@@ -111,35 +111,35 @@ function Header({ data, onClose }: { data: AirportDetail; onClose: () => void })
     now === null ? "" : new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: a.tz || "UTC" }).format(now * 1000);
 
   return (
-    <header className="px-4 pb-3 pt-3 text-white">
+    <header className="px-3 pb-2.5 pt-2.5 text-white">
       <div className="flex items-start gap-2">
-        <h1 className="min-w-0 flex-1 text-[19px] font-medium leading-snug text-fr-yellow">{a.name}</h1>
+        <h1 className="min-w-0 flex-1 text-[16px] font-medium leading-snug text-fr-yellow">{a.name}</h1>
         <IconButton
           label={starred ? "Remove bookmark" : "Bookmark this airport"}
           onClick={() => toggleBookmark({ kind: "airport", id: a.icao, label: a.name, sub: [a.iata || a.icao, a.city].filter(Boolean).join(" · ") })}
           active={starred}
         >
-          <Star size={22} strokeWidth={1.6} fill={starred ? "currentColor" : "none"} />
+          <Star size={17} strokeWidth={1.6} fill={starred ? "currentColor" : "none"} />
         </IconButton>
         <IconButton label={shared ? "Link copied" : "Share"} onClick={share} active={shared}>
-          <Share size={21} strokeWidth={1.6} />
+          <Share size={16} strokeWidth={1.6} />
         </IconButton>
         <IconButton label="Close" onClick={onClose}>
-          <X size={24} strokeWidth={1.6} />
+          <X size={19} strokeWidth={1.6} />
         </IconButton>
       </div>
-      <div className="mt-1 flex items-center gap-2 text-[16px]">
-        <Flag code={a.countryCode} height={15} />
+      <div className="mt-0.5 flex items-center gap-1.5 text-[13px]">
+        <Flag code={a.countryCode} height={12} />
         {[a.iata, a.icao].filter(Boolean).join(" / ")}
       </div>
-      <div className="mt-1.5 flex items-center text-[15px] text-white/90">
+      <div className="mt-1 flex items-center text-[12.5px] text-white/90">
         <span className="tabular">{localTime} LT</span>
-        <span className="mx-2 h-4 w-px bg-white/30" />
+        <span className="mx-1.5 h-3 w-px bg-white/30" />
         <span>{localDate}</span>
-        <span className="mx-2 h-4 w-px bg-white/30" />
+        <span className="mx-1.5 h-3 w-px bg-white/30" />
         <span>Elev. {a.elevation.toLocaleString("en-US")} ft</span>
         <span className="ml-auto opacity-80">
-          <LogoMark size={18} />
+          <LogoMark size={15} />
         </span>
       </div>
     </header>
@@ -152,7 +152,7 @@ function IconButton({ children, label, onClick, active }: { children: ReactNode;
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`rounded-md p-1.5 transition hover:bg-white/10 ${active ? "text-fr-yellow" : "text-white/90 hover:text-white"}`}
+      className={`rounded-md p-1 transition hover:bg-white/10 ${active ? "text-fr-yellow" : "text-white/90 hover:text-white"}`}
     >
       {children}
     </button>
@@ -161,7 +161,7 @@ function IconButton({ children, label, onClick, active }: { children: ReactNode;
 
 function TabButton({ icon, label, active, onClick }: { icon: ReactNode; label: string; active: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`flex flex-col items-center gap-1 py-2.5 ${active ? "text-fr-yellow" : "text-white/85 hover:text-white"}`}>
+    <button onClick={onClick} className={`flex flex-col items-center gap-0.5 py-2 ${active ? "text-fr-yellow" : "text-white/85 hover:text-white"}`}>
       {icon}
       {label}
     </button>
@@ -230,12 +230,12 @@ function AirportPhoto({ icao, name }: { icao: string; name: string }) {
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={photo.src} alt={name} className="h-full w-full object-cover" />
-            <div className="absolute inset-x-0 bottom-0 flex items-end gap-2 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-8 text-[13px] text-white">
+            <div className="absolute inset-x-0 bottom-0 flex items-end gap-2 bg-gradient-to-t from-black/70 to-transparent px-2.5 pb-1.5 pt-6 text-[11px] text-white">
               <span className="truncate" title={photo.license ?? undefined}>
                 © {photo.author}
               </span>
               <a href={photo.link} target="_blank" rel="noreferrer" className="ml-auto shrink-0 hover:text-fr-yellow" aria-label="Photo source">
-                <ExternalLink size={20} strokeWidth={1.6} />
+                <ExternalLink size={15} strokeWidth={1.6} />
               </a>
             </div>
           </>
@@ -272,7 +272,7 @@ function useMetar(icao: string): DecodedMetar | null | undefined {
 const SKY_LABEL = { clear: "Clear", partly: "Partly cloudy", cloudy: "Cloudy", rain: "Rain", snow: "Snow", storm: "Thunderstorm", fog: "Fog" };
 
 function SkyGlyph({ sky, night }: { sky: DecodedMetar["sky"]; night: boolean }) {
-  const p = { size: 44, strokeWidth: 1.4 };
+  const p = { size: 32, strokeWidth: 1.4 };
   switch (sky) {
     case "clear":
       return night ? <Moon {...p} /> : <Sun {...p} />;
@@ -303,39 +303,39 @@ function WeatherCard({ icao, tz }: { icao: string; tz: string | null }) {
     <div className="space-y-1.5 rounded-md bg-[#c9cacd] p-1.5">
       <div className="grid grid-cols-3 gap-1.5">
         <Tile label="Conditions">
-          {metar ? <SkyGlyph sky={metar.sky} night={night} /> : <span className="h-11" />}
-          <span className="text-[17px]">{metar ? SKY_LABEL[metar.sky] : "—"}</span>
+          {metar ? <SkyGlyph sky={metar.sky} night={night} /> : <span className="h-8" />}
+          <span className="text-[13px]">{metar ? SKY_LABEL[metar.sky] : "—"}</span>
         </Tile>
         <Tile label="Temperature">
-          <span className="flex h-[70px] items-center text-[38px] font-light tabular">{metar?.temperature ?? "—"} °C</span>
+          <span className="flex h-[52px] items-center text-[28px] font-light tabular">{metar?.temperature ?? "—"} °C</span>
         </Tile>
         <Tile label="Wind">
           {metar?.windKt ? (
             <>
               {metar.windDir !== null ? (
-                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" style={{ transform: `rotate(${metar.windDir + 180}deg)` }} aria-hidden>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" style={{ transform: `rotate(${metar.windDir + 180}deg)` }} aria-hidden>
                   <path d="M12 20V4M6 10l6-6 6 6" />
                 </svg>
               ) : (
-                <span className="flex h-11 items-center text-[17px]">VRB</span>
+                <span className="flex h-8 items-center text-[13px]">VRB</span>
               )}
-              <span className="text-[17px] tabular">
+              <span className="text-[13px] tabular">
                 {metar.windDir !== null ? `${metar.windDir}° ` : ""}
                 {metar.windKt} kts
               </span>
             </>
           ) : (
-            <span className="flex h-[70px] items-center text-[20px]">{metar ? "Calm" : "—"}</span>
+            <span className="flex h-[52px] items-center text-[15px]">{metar ? "Calm" : "—"}</span>
           )}
         </Tile>
       </div>
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-center gap-3 rounded-md bg-white px-3 py-2.5 text-[18px] text-[#2f7fd1] hover:bg-[#f7f7f7]"
+        className="flex w-full items-center justify-center gap-2 rounded-md bg-white px-3 py-2 text-[14px] text-[#2f7fd1] hover:bg-[#f7f7f7]"
       >
-        <CloudSun size={24} strokeWidth={1.5} />
+        <CloudSun size={18} strokeWidth={1.5} />
         More weather &amp; METAR
-        <ChevronDown size={22} className={`ml-auto transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={17} className={`ml-auto transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && metar && (
         <div className="space-y-2 rounded-md bg-white p-3 text-[14px] text-[#333]">
@@ -360,8 +360,8 @@ function WeatherCard({ icao, tz }: { icao: string; tz: string | null }) {
 
 function Tile({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-1 rounded-md bg-[#efeff0] px-1 py-3 text-[#2a2b2e]">
-      <span className="text-[13px] font-medium uppercase tracking-wide text-[#555]">{label}</span>
+    <div className="flex flex-col items-center gap-0.5 rounded-md bg-[#efeff0] px-1 py-2 text-[#2a2b2e]">
+      <span className="text-[10.5px] font-medium uppercase tracking-wide text-[#555]">{label}</span>
       {children}
     </div>
   );
@@ -387,26 +387,26 @@ function Section({
   const [open, setOpen] = useState(defaultOpen);
   return (
     <section className="overflow-hidden rounded-md bg-[#f2f2f3]">
-      <button onClick={() => setOpen(!open)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-[#2a2b2e] hover:bg-white">
+      <button onClick={() => setOpen(!open)} className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[#2a2b2e] hover:bg-white">
         <span className="text-[#555]">
-          <Icon size={26} />
+          <Icon size={20} />
         </span>
-        <span className="text-[16px] font-medium uppercase tracking-wide">{title}</span>
+        <span className="text-[13px] font-medium uppercase tracking-wide">{title}</span>
         {badge}
         {help && (
           <span title={help} className="text-[#777]">
-            <CircleHelp size={18} />
+            <CircleHelp size={14} />
           </span>
         )}
-        <ChevronDown size={22} className={`ml-auto text-[#555] transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={17} className={`ml-auto text-[#555] transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
-      {open && <div className="px-3 pb-3">{children}</div>}
+      {open && <div className="px-2 pb-2">{children}</div>}
     </section>
   );
 }
 
 const LiveBadge = () => (
-  <span className="rounded border border-[#999] px-1.5 text-[12px] font-medium uppercase tracking-wide text-[#555]">Live</span>
+  <span className="rounded-[3px] border border-[#999] px-1 text-[10px] font-medium uppercase tracking-wide text-[#555]">Live</span>
 );
 
 function LatestEvents({ data }: { data: AirportDetail }) {
@@ -460,8 +460,8 @@ function Stats({ data }: { data: AirportDetail }) {
     <dl className="grid grid-cols-2 gap-1.5">
       {items.map(([k, v]) => (
         <div key={k} className="rounded-md bg-white px-3 py-2">
-          <dd className="text-[22px] font-medium text-[#2a2b2e] tabular">{v}</dd>
-          <dt className="text-[12px] uppercase tracking-wide text-[#777]">{k}</dt>
+          <dd className="text-[18px] font-medium text-[#2a2b2e] tabular">{v}</dd>
+          <dt className="text-[10.5px] uppercase tracking-wide text-[#777]">{k}</dt>
         </div>
       ))}
     </dl>
@@ -601,7 +601,7 @@ function LightBoard({ entries, kind, tz, ground }: { entries: BoardEntry[]; kind
 
 // ---- Glyphs ------------------------------------------------------------------
 
-function DepIcon({ size = 26 }: { size?: number }) {
+function DepIcon({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M2 21h20" />
@@ -610,7 +610,7 @@ function DepIcon({ size = 26 }: { size?: number }) {
   );
 }
 
-function ArrIcon({ size = 26 }: { size?: number }) {
+function ArrIcon({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M2 21h20" />
@@ -621,14 +621,14 @@ function ArrIcon({ size = 26 }: { size?: number }) {
 
 function GroundIcon() {
   return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M2 21h20" />
       <path d="M4 17h14.5c1.4 0 2.5-.9 2.5-2s-1.1-2-2.5-2H14l-4-5H8l2 5H6l-1.5-2H3l1 4z" />
     </svg>
   );
 }
 
-function EventsIcon({ size = 26 }: { size?: number }) {
+function EventsIcon({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M3 20h18" />
@@ -638,7 +638,7 @@ function EventsIcon({ size = 26 }: { size?: number }) {
   );
 }
 
-function RunwayIcon({ size = 26 }: { size?: number }) {
+function RunwayIcon({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M9 2 5 22M15 2l4 20M12 3v2M12 8v2M12 13v2M12 18v3" />

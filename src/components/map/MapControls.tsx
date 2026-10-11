@@ -14,7 +14,7 @@ export function MapControls() {
   }, []);
 
   return (
-    <div className="pointer-events-auto absolute right-3 top-[124px] z-20 hidden flex-col gap-2 sm:flex">
+    <div className="pointer-events-auto absolute right-3 top-[100px] z-20 hidden flex-col gap-2 sm:flex">
       <RoundButton label="Zoom in" onClick={() => mapInstance.current?.zoomIn()}>
         <Plus size={20} strokeWidth={1.6} />
       </RoundButton>
