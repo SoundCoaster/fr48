@@ -6,7 +6,7 @@ import { ingestFlights } from "./motion";
 import { setState } from "./store";
 
 /** Polls the live flight list into the global store. */
-export function useLiveFlights(intervalMs = 7500) {
+export function useLiveFlights(intervalMs = 15_000) {
   useEffect(() => {
     let stop = false;
     let timer: ReturnType<typeof setTimeout>;

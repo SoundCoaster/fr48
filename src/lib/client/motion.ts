@@ -12,7 +12,8 @@ import type { FlightsResponse } from "../types";
  * dead-reckoning straight ahead and sliding sideways when the next update
  * lands.
  */
-export const DELAY_S = 22;
+// Feed every 15 s + server refresh (<=15 s) + client poll (15 s, see useLiveFlights)
+export const DELAY_S = 30;
 const KEEP = 5;
 const MAX_EXTRAPOLATE_S = 60;
 
