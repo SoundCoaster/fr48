@@ -8,6 +8,9 @@ import { REFRESH_MS, USER_AGENT, VATSIM_FEED } from "./constants";
 
 export { REFRESH_MS };
 
+/** How far back trails are rebuilt from history when the service starts. */
+const SEED_HOURS = 12;
+
 /**
  * Owns the traffic store, keeps it fed from VATSIM, and serialises the API
  * payloads. Runs inside the Durable Object in production and as a process
@@ -47,10 +50,22 @@ export class TrafficService {
     return out;
   }
 
+  private seeded = false;
+
+  /** Once, before the first ingest: rebuild trails from the last hours of playback frames. */
+  private async seed() {
+    if (this.seeded) return;
+    this.seeded = true;
+    const now = Date.now() / 1000;
+    const frames = await this.archive.read(now - SEED_HOURS * 3600, now + 60);
+    this.store.seedTrails(frames.map(([t, rows]) => [t, JSON.parse(rows)]));
+  }
+
   async refresh(): Promise<void> {
     if (this.inflight) return this.inflight;
     this.inflight = (async () => {
       try {
+        await this.seed().catch((e) => console.error("trail seed failed", e));
         const res = await fetch(VATSIM_FEED, { headers: { "user-agent": USER_AGENT } });
         if (!res.ok) throw new Error(`VATSIM feed HTTP ${res.status}`);
         const feed = (await res.json()) as VatsimFeed;

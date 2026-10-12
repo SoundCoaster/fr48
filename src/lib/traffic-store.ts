@@ -60,6 +60,52 @@ export class TrafficStore {
   updated = 0;
   /** Bumped on every ingest; lets callers cache derived payloads. */
   version = 0;
+  /** Trails rebuilt from recorded history at startup, applied when a callsign is first seen. */
+  private seeds = new Map<string, { trail: number[]; takeoffAt: number | null }>();
+
+  /**
+   * Rebuild recent trails from one-minute history frames ([t, rows] oldest first,
+   * rows = [callsign, lat, lon, hdg, alt, gs, …]) so a restart doesn't lose them.
+   * Each callsign keeps its current leg: from just before its last take-off.
+   */
+  seedTrails(frames: [number, [string, number, number, number, number, number, ...unknown[]][]][]) {
+    const byCs = new Map<string, number[][]>();
+    for (const [t, rows] of frames) {
+      for (const [cs, lat, lon, hdg, alt, gs] of rows) {
+        let pts = byCs.get(cs);
+        if (!pts) byCs.set(cs, (pts = []));
+        const prev = pts[pts.length - 1];
+        // A gap of more than 20 minutes means another flight: start over
+        if (prev && t - prev[5] > 1200) pts.length = 0;
+        pts.push([lat, lon, alt, gs, hdg, t]);
+      }
+    }
+    this.seeds.clear();
+    for (const [cs, pts] of byCs) {
+      let start = 0;
+      let takeoffAt: number | null = null;
+      for (let i = 1; i < pts.length; i++) {
+        if (pts[i - 1][3] < GROUND_SPEED_KT && pts[i][3] >= GROUND_SPEED_KT) {
+          start = Math.max(0, i - 2); // keep a little taxi before the take-off
+          takeoffAt = pts[i][5];
+        }
+      }
+      const leg = pts.slice(start);
+      if (leg.length >= 2) this.seeds.set(cs, { trail: leg.flat(), takeoffAt });
+    }
+  }
+
+  private applySeed(tr: Track) {
+    const seed = this.seeds.get(tr.callsign);
+    if (!seed) return;
+    this.seeds.delete(tr.callsign);
+    tr.trail = seed.trail.concat(tr.trail);
+    if (seed.takeoffAt !== null) {
+      tr.takeoffAt = seed.takeoffAt;
+      tr.everAirborne = true;
+    }
+    tr.firstSeen = seed.trail[5];
+  }
 
 
   ingest(feed: VatsimFeed): boolean {
@@ -122,12 +168,15 @@ export class TrafficStore {
           trail: [],
         };
         this.tracks.set(key, tr);
+        this.applySeed(tr);
       } else {
         // New leg: a different route filed, or a fresh take-off after a landing.
         const fpChanged =
           tr.fp && p.flight_plan &&
           (tr.fp.departure !== p.flight_plan.departure || tr.fp.arrival !== p.flight_plan.arrival);
-        if (fpChanged) this.resetLeg(tr, t);
+        // A new route only starts a new leg on the ground; amending the plan in flight
+        // (new destination, diversion) must not wipe the trail
+        if (fpChanged && onGround && tr.onGround) this.resetLeg(tr, t);
 
         const dt = t - tr.prevT;
         if (dt > 0 && dt < 300) {

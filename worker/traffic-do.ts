@@ -2,8 +2,6 @@ import { DurableObject } from "cloudflare:workers";
 import { HISTORY_DAYS, type HistoryStore } from "../src/lib/history";
 import { REFRESH_MS, TrafficService } from "../src/lib/traffic-service";
 
-/** Keep polling VATSIM this long after the last visitor request, then go idle. */
-const ACTIVE_FOR_MS = 15 * 60_000;
 
 async function gzip(text: string): Promise<ArrayBuffer> {
   return new Response(new Blob([text]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer();
@@ -39,14 +37,13 @@ class SqlHistory implements HistoryStore {
 }
 
 /**
- * Single global object that polls VATSIM every 15 s while the site is in use
- * and keeps every flight's trail in memory. Storage is kept minimal for the
- * Durable Objects free tier: no trail snapshots (they reset on deploy), and
- * the alarm (one row write each) only runs while someone is watching.
+ * Single global object that polls VATSIM every 15 s and keeps every flight's
+ * trail in memory. Storage stays within the Durable Objects free tier: one
+ * alarm row write per 15 s and one playback frame per minute (~8k rows/day).
+ * On restart, trails are rebuilt from the playback frames (no big snapshots).
  */
 export class TrafficTracker extends DurableObject {
   private service: TrafficService;
-  private lastRequest = 0;
   private alarmSet = false;
 
   constructor(ctx: DurableObjectState, env: unknown) {
@@ -54,9 +51,8 @@ export class TrafficTracker extends DurableObject {
     this.service = new TrafficService(new SqlHistory(ctx.storage.sql));
   }
 
-  /** Called on every request: (re)start polling if it went idle. */
+  /** Called on every request: make sure polling is running (e.g. after an eviction). */
   private async touch() {
-    this.lastRequest = Date.now();
     if (!this.alarmSet) {
       this.alarmSet = true;
       await this.ctx.storage.setAlarm(Date.now() + REFRESH_MS);
@@ -69,8 +65,8 @@ export class TrafficTracker extends DurableObject {
     } catch (e) {
       console.error("refresh failed", e);
     }
-    if (Date.now() - this.lastRequest < ACTIVE_FOR_MS) await this.ctx.storage.setAlarm(Date.now() + REFRESH_MS);
-    else this.alarmSet = false;
+    this.alarmSet = true;
+    await this.ctx.storage.setAlarm(Date.now() + REFRESH_MS);
   }
 
   async flights() { await this.touch(); return this.service.flights(); }
