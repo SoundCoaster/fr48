@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { useLiveFlights } from "@/lib/client/data";
 import { BottomBar } from "./BottomBar";
-import { PlaybackBar, PlaybackFlightCard } from "./PlaybackBar";
 import { MapControls } from "./map/MapControls";
 import { MapOverlay } from "./map/MapOverlay";
 import { View3DOverlay } from "./map/View3DOverlay";
@@ -41,8 +40,6 @@ export function MapShell({ children }: { children: ReactNode }) {
           {children}
           <MapControls />
           <BottomBar />
-          <PlaybackBar />
-          <PlaybackFlightCard />
           <Suspense>
             <View3DOverlay />
           </Suspense>

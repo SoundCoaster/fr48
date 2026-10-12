@@ -12,7 +12,7 @@ export interface Target3D {
 }
 
 const TERRAIN_TILES = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
-const FLIGHT_LAYERS = ["flights", "flights-shadow", "flights-hover", "route"];
+const FLIGHT_LAYERS = ["flights", "flights-shadow", "flights-hover", "route", "trail-gap"];
 /** Model is built in metres; drawn a bit larger than life so it reads at chase distance. */
 const MODEL_SCALE = 1.6;
 const RAD = Math.PI / 180;

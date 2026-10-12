@@ -8,7 +8,6 @@ import { useEffect, useRef } from "react";
 import { SILHOUETTE_SCALE, SILHOUETTES, type Silhouette } from "@/data/aircraft";
 import { mapInstance } from "./instance";
 import { motionAt, renderTime } from "@/lib/client/motion";
-import { sampleAt, trailAt } from "@/lib/client/playback";
 import type { View3D } from "./view3d";
 import { ATC_CLICK_LAYERS, atcPopupHtml, installAtcLayers, syncAtc } from "./atcLayer";
 import { syncNight } from "./daynight";
@@ -17,7 +16,7 @@ import { isDarkStyle, resolveStyle, STYLES } from "./styles";
 import { useAirportRows, useFlightDetail, type AirportRow } from "@/lib/client/data";
 import { getState, setState, subscribe, useStore, type Filters } from "@/lib/client/store";
 import { altitudeColor } from "@/lib/format";
-import { greatCircle, unwrap } from "@/lib/geo";
+import { distanceNm, greatCircle, unwrap } from "@/lib/geo";
 import type { FlightDetail, FlightRow } from "@/lib/types";
 
 // Bundlers break MapLibre's self-located worker; serve it from /public instead (see postinstall).
@@ -80,6 +79,7 @@ function installLayers(map: MLMap) {
   map.addSource("airports", { type: "geojson", data: EMPTY });
   map.addSource("route", { type: "geojson", data: EMPTY });
   map.addSource("trail", { type: "geojson", data: EMPTY });
+  map.addSource("trail-gap", { type: "geojson", data: EMPTY });
   map.addSource("flights", { type: "geojson", data: EMPTY });
 
   map.addLayer({
@@ -95,6 +95,14 @@ function installLayers(map: MLMap) {
   });
   // Online ATC sits under the traffic (and above the day/night shading)
   installAtcLayers(map, isDark, "route");
+  // Estimated part of a flight we only started tracking mid-air (departure -> first known point)
+  map.addLayer({
+    id: "trail-gap",
+    type: "line",
+    source: "trail-gap",
+    layout: { "line-cap": "round" },
+    paint: { "line-color": isDark ? "#e4e9ee" : "#4a5560", "line-opacity": 0.75, "line-width": 2, "line-dasharray": [0.8, 2] },
+  });
   map.addLayer({
     id: "trail",
     type: "line",
@@ -431,13 +439,6 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       };
       // In 3D the pointer orbits the camera; don't treat taps as map clicks
       if (getState().view3d) return;
-      if (getState().playback) {
-        // Playback: select locally (the flight may no longer be online)
-        if (plane) setState({ playbackSel: plane.properties.cs });
-        else if (apt) router.push(`/airport/${apt.properties.icao}`);
-        else setState({ playbackSel: null });
-        return;
-      }
       if (plane) {
         flewToRef.current = plane.properties.cs;
         router.push(`/${encodeURIComponent(plane.properties.cs)}`);
@@ -454,9 +455,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
       const st = getState();
-      const pb = st.playback;
-      // In playback the selection is local, not the routed live flight
-      const selCs = pb ? st.playbackSel : selectedRef.current;
+      const selCs = selectedRef.current;
       const selNow = selCs ? displayRef.current.get(selCs) : undefined;
       if (selNow && !st.view3d) {
         const { x, y } = map.project([selNow.lon, selNow.lat]);
@@ -475,7 +474,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       if (aptRow) placeAptLabel(aptRow, aptIcao === hoverApt);
       else if (aptLabel.style.opacity !== "0") aptLabel.style.opacity = "0";
       const src = map.getSource("flights") as GeoJSONSource | undefined;
-      const rows = pb ? sampleAt(pb.t) : st.data?.flights;
+      const rows = st.data?.flights;
       if (!rows || !src) return;
 
       const zoom = map.getZoom();
@@ -484,8 +483,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       lastPush = now;
       lastForce = forceRef.current;
 
-      // Live: smooth path between feed snapshots, drawn a little behind real time.
-      // Playback rows are already interpolated.
+      // Smooth path between feed snapshots, drawn a little behind real time
       const tr = renderTime();
       const sel = selCs;
       const display = displayRef.current;
@@ -509,7 +507,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
         const isSel = cs === sel;
         if (!isSel && !matches(f, st.filters)) continue;
         seen.add(cs);
-        const m = pb ? null : motionAt(cs, tr);
+        const m = motionAt(cs, tr);
         const d: Display = m ? { lat: m.lat, lon: m.lon, hdg: m.hdg } : { lat, lon, hdg };
         display.set(cs, d);
         if (!isSel && !inView(d.lat, d.lon)) continue;
@@ -538,14 +536,19 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       const live = sel ? display.get(sel) : undefined;
       const trailSrc = map.getSource("trail") as GeoJSONSource | undefined;
       const routeSrc = map.getSource("route") as GeoJSONSource | undefined;
-      if (pb) {
-        // Replayed track from the recorded frames
-        const pts = sel ? trailAt(sel, pb.t) : [];
-        const fake = { trail: pts.map(([lon, lat, alt]) => [lon, lat, alt, 0, 0]) } as unknown as FlightDetail;
-        trailSrc?.setData({ type: "FeatureCollection", features: pts.length ? trailFeatures(fake, live) : [] });
-        routeSrc?.setData(EMPTY);
-      } else if (det && trailSrc && routeSrc) {
+      const gapSrc = map.getSource("trail-gap") as GeoJSONSource | undefined;
+      if (det && trailSrc && routeSrc) {
         trailSrc.setData({ type: "FeatureCollection", features: trailFeatures(det, live, tr) });
+        // Trail starts away from the departure airport: draw the unknown part as estimated
+        const known = det.trail.filter((p) => p[4] <= tr);
+        const first = known[0] ? { lon: known[0][0], lat: known[0][1] } : live;
+        const org = det.origin;
+        const tookOffUnseen = det.times.actualDeparture === null || (known[0] && known[0][4] - det.times.actualDeparture > 300);
+        gapSrc?.setData(
+          org && first && !det.position.onGround && tookOffUnseen && distanceNm(org.lat, org.lon, first.lat, first.lon) > 15
+            ? { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: greatCircle(org.lat, org.lon, first.lat, first.lon) } }
+            : EMPTY,
+        );
         const dest = det.destination;
         routeSrc.setData(
           live && dest && det.status !== "landed" && getState().showRoute
@@ -555,9 +558,10 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       } else {
         trailSrc?.setData(EMPTY);
         routeSrc?.setData(EMPTY);
+        gapSrc?.setData(EMPTY);
       }
       if (live && getState().follow && !st.view3d && !map.isMoving()) map.jumpTo({ center: [live.lon, live.lat] });
-      if (!pb && !st.view3d && sel && live && flewToRef.current !== sel) {
+      if (!st.view3d && sel && live && flewToRef.current !== sel) {
         flewToRef.current = sel;
         if (!map.getBounds().contains([live.lon, live.lat])) {
           map.flyTo({ center: [live.lon, live.lat], zoom: Math.max(map.getZoom(), 6), duration: 1200 });

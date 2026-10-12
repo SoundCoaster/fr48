@@ -23,12 +23,12 @@ export class TrafficService {
   private cache = new Map<string, { version: number; body: string }>();
   /** callsign -> timestamps (ms) of recent detail requests, to estimate live viewers. */
   private views = new Map<string, number[]>();
-  /** Minute (unix s) of the last playback frame recorded. */
+  /** Minute (unix s) of the last position frame recorded (used to rebuild trails). */
   private lastFrame = 0;
 
   constructor(private archive: HistoryStore = new MemoryHistory()) {}
 
-  /** Record one playback frame per minute of feed time. */
+  /** Record one compact frame of all positions per minute of feed time. */
   private async recordFrame() {
     const t = Math.floor(this.store.updated / 60_000) * 60;
     if (!t || t === this.lastFrame) return;
@@ -52,7 +52,7 @@ export class TrafficService {
 
   private seeded = false;
 
-  /** Once, before the first ingest: rebuild trails from the last hours of playback frames. */
+  /** Once, before the first ingest: rebuild trails from the last hours of position frames. */
   private async seed() {
     if (this.seeded) return;
     this.seeded = true;
@@ -123,16 +123,6 @@ export class TrafficService {
   async atc(): Promise<string> {
     await this.ensureFresh();
     return this.cached("atc", () => atcStations(this.store));
-  }
-
-  async playbackRange(): Promise<string> {
-    return JSON.stringify(await this.archive.bounds());
-  }
-
-  /** Frames for [from, from + minutes), as {"frames":[[t, rows], ...]} without re-parsing rows. */
-  async playback(from: number, minutes: number): Promise<string> {
-    const frames = await this.archive.read(from, from + minutes * 60);
-    return `{"frames":[${frames.map(([t, rows]) => `[${t},${rows}]`).join(",")}]}`;
   }
 
   async search(q: string): Promise<string> {

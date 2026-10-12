@@ -75,20 +75,8 @@ interface State {
   showRoute: boolean;
   panel: null | "settings" | "filters" | "widgets";
   bookmarks: Bookmark[];
-  /** Playback mode: map shows recorded traffic at `t` (unix s) instead of live. */
-  playback: Playback | null;
-  /** Aircraft selected while in playback (not routed: it may no longer be online). */
-  playbackSel: string | null;
   /** 3D chase view of the selected live flight. */
   view3d: boolean;
-}
-
-export interface Playback {
-  t: number;
-  playing: boolean;
-  speed: number;
-  first: number;
-  last: number;
 }
 
 const load = <T,>(key: string, fallback: T): T => {
@@ -111,8 +99,6 @@ let state: State = {
   showRoute: true,
   panel: null,
   bookmarks: [],
-  playback: null,
-  playbackSel: null,
   view3d: false,
 };
 let hydrated = false;

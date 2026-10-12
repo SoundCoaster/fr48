@@ -1,12 +1,12 @@
 import { aircraftInfo } from "@/data/aircraft";
 import type { TrafficStore } from "./traffic-store";
 
-/** How long playback history is kept. */
-export const HISTORY_DAYS = 7;
+/** How long position frames are kept (enough to rebuild any flight in progress). */
+export const HISTORY_DAYS = 1;
 
 
 /**
- * One playback frame row:
+ * One position frame row:
  * [callsign, lat, lon, heading, altitude ft, groundspeed kt, type, origin, destination, silhouette]
  */
 export type HistoryRow = [string, number, number, number, number, number, string, string, string, string];

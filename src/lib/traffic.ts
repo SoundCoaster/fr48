@@ -8,9 +8,7 @@ export interface TrafficApi {
   airport(code: string): Promise<string | null>;
   airports(): Promise<string>;
   search(q: string): Promise<string>;
-  playbackRange(): Promise<string>;
   atc(): Promise<string>;
-  playback(from: number, minutes: number): Promise<string>;
 }
 
 type Local = TrafficApi;
@@ -35,9 +33,7 @@ const localApi: TrafficApi = {
   airport: async (code) => (await local()).airport(code),
   airports: async () => (await local()).airports(),
   search: async (q) => (await local()).search(q),
-  playbackRange: async () => (await local()).playbackRange(),
   atc: async () => (await local()).atc(),
-  playback: async (from, minutes) => (await local()).playback(from, minutes),
 };
 
 /**

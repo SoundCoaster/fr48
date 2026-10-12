@@ -11,7 +11,7 @@ async function gunzip(data: ArrayBuffer): Promise<string> {
   return new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
 }
 
-/** Playback frames in the object's SQLite storage, gzipped, kept HISTORY_DAYS. */
+/** Position frames in the object's SQLite storage, gzipped, kept HISTORY_DAYS (trail rebuilding). */
 class SqlHistory implements HistoryStore {
   private writes = 0;
   constructor(private sql: SqlStorage) {
@@ -39,8 +39,8 @@ class SqlHistory implements HistoryStore {
 /**
  * Single global object that polls VATSIM every 15 s and keeps every flight's
  * trail in memory. Storage stays within the Durable Objects free tier: one
- * alarm row write per 15 s and one playback frame per minute (~8k rows/day).
- * On restart, trails are rebuilt from the playback frames (no big snapshots).
+ * alarm row write per 15 s and one compact position frame per minute
+ * (~8k rows/day). On restart, trails are rebuilt from those frames.
  */
 export class TrafficTracker extends DurableObject {
   private service: TrafficService;
@@ -74,7 +74,5 @@ export class TrafficTracker extends DurableObject {
   async airport(code: string) { await this.touch(); return this.service.airport(code); }
   async airports() { await this.touch(); return this.service.airports(); }
   async search(q: string) { await this.touch(); return this.service.search(q); }
-  async playbackRange() { await this.touch(); return this.service.playbackRange(); }
   async atc() { await this.touch(); return this.service.atc(); }
-  async playback(from: number, minutes: number) { await this.touch(); return this.service.playback(from, minutes); }
 }
