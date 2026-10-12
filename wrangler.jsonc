@@ -19,5 +19,7 @@
     "bindings": [{ "name": "TRAFFIC", "class_name": "TrafficTracker" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TrafficTracker"] }],
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // Keep-alive for the traffic tracker (see worker/index.ts)
+  "triggers": { "crons": ["*/5 * * * *"] }
 }

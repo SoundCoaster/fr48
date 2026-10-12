@@ -69,6 +69,8 @@ export class TrafficTracker extends DurableObject {
     await this.ctx.storage.setAlarm(Date.now() + REFRESH_MS);
   }
 
+  /** Keep-alive from the cron trigger: restarts polling if it stopped (no write when already running). */
+  async ping() { await this.touch(); return true; }
   async flights() { await this.touch(); return this.service.flights(); }
   async flight(callsign: string) { await this.touch(); return this.service.flight(callsign); }
   async airport(code: string) { await this.touch(); return this.service.airport(code); }
