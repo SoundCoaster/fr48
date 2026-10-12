@@ -1,8 +1,17 @@
 import { aircraftInfo } from "@/data/aircraft";
 import type { TrafficStore } from "./traffic-store";
+import type { FlightLog } from "./types";
 
 /** How long playback history is kept. */
 export const HISTORY_DAYS = 7;
+/** How long flight history (one record per leg) is kept. */
+export const FLIGHT_LOG_DAYS = 90;
+
+export interface LegQuery {
+  callsign?: string;
+  /** Registration without dashes, upper case */
+  reg?: string;
+}
 
 /**
  * One playback frame row:
@@ -15,6 +24,9 @@ export interface HistoryStore {
   put(t: number, rowsJson: string): Promise<void>;
   read(from: number, to: number): Promise<[number, string][]>;
   bounds(): Promise<{ first: number; last: number } | null>;
+  putLegs(logs: FlightLog[]): Promise<void>;
+  /** Most recent first. */
+  legs(q: LegQuery, limit: number): Promise<FlightLog[]>;
 }
 
 /** In-process history for `next dev` (last few hours only). */
@@ -31,6 +43,17 @@ export class MemoryHistory implements HistoryStore {
   async bounds() {
     const ts = [...this.frames.keys()];
     return ts.length ? { first: Math.min(...ts), last: Math.max(...ts) } : null;
+  }
+  private logs: FlightLog[] = [];
+  async putLegs(logs: FlightLog[]) {
+    this.logs.push(...logs);
+    if (this.logs.length > 5000) this.logs.splice(0, this.logs.length - 5000);
+  }
+  async legs(q: LegQuery, limit: number) {
+    return this.logs
+      .filter((l) => (q.callsign && l.callsign === q.callsign) || (q.reg && l.reg && l.reg.replace(/-/g, "") === q.reg))
+      .sort((a, b) => b.lastSeen - a.lastSeen)
+      .slice(0, limit);
   }
 }
 

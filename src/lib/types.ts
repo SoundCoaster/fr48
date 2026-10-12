@@ -250,3 +250,42 @@ export interface SearchResults {
   airports: MiniAirport[];
   airlines: (Airline & { live: number })[];
 }
+
+// ---- Flight history ---------------------------------------------------------
+
+/** One recorded flight leg. Times are unix seconds. */
+export interface FlightLog {
+  callsign: string;
+  reg: string | null;
+  cid: number;
+  pilot: string;
+  dep: string;
+  arr: string;
+  type: string;
+  /** Scheduled (filed) departure / arrival */
+  std: number | null;
+  sta: number | null;
+  /** Actual take-off / landing */
+  atd: number | null;
+  ata: number | null;
+  firstSeen: number;
+  lastSeen: number;
+  distanceNm: number;
+  maxAlt: number;
+}
+
+export interface FlightHistoryEntry extends FlightLog {
+  live: boolean;
+  status: "live" | "landed" | "incomplete";
+  flightNumber: string | null;
+  airline: Airline | null;
+  aircraftName: string;
+  origin: MiniAirport | null;
+  destination: MiniAirport | null;
+}
+
+export interface FlightHistoryResponse {
+  callsign: string | null;
+  reg: string | null;
+  flights: FlightHistoryEntry[];
+}

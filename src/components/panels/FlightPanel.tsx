@@ -7,6 +7,7 @@ import {
   Copy,
   ExternalLink,
   Gauge,
+  History,
   Loader2,
   MapPin,
   MoreHorizontal,
@@ -463,6 +464,14 @@ function ActionBar({ d }: { d: FlightDetail }) {
     <div ref={ref} className="relative">
       {menu && (
         <div className="absolute bottom-full right-2 mb-2 w-60 overflow-hidden rounded-lg bg-[#2a2b2e] py-1 text-[13px] text-white shadow-2xl ring-1 ring-white/10">
+          <MenuLink href={`/data/flights/${encodeURIComponent(d.callsign)}`} icon={<History size={15} />}>
+            Flight history · {d.callsign}
+          </MenuLink>
+          {d.aircraft.registration && (
+            <MenuLink href={`/data/aircraft/${encodeURIComponent(d.aircraft.registration)}`} icon={<Plane size={15} />}>
+              Aircraft history · {d.aircraft.registration}
+            </MenuLink>
+          )}
           {d.origin && (
             <MenuLink href={`/airport/${d.origin.icao}`} icon={<MapPin size={15} />}>
               Departure airport · {d.origin.iata || d.origin.icao}
