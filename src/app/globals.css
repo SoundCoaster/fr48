@@ -168,3 +168,13 @@ body {
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Device position ("My location") */
+.fr-me {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2f80ed;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 6px rgba(47, 128, 237, 0.25), 0 1px 4px rgba(0, 0, 0, 0.4);
+}
