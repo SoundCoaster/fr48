@@ -32,7 +32,8 @@ import { AircraftPhoto } from "./AircraftPhoto";
 export function FlightPanel({ params }: { params: Promise<{ callsign: string }> }) {
   const callsign = decodeURIComponent(use(params).callsign).toUpperCase();
   const router = useRouter();
-  const { data, error, loading } = useFlightDetail(callsign);
+  const { data, error, failed, loading } = useFlightDetail(callsign);
+  const unavailable = failed && !error;
   const detail = data && data.callsign === callsign ? data : null;
 
   useEffect(() => {
@@ -51,7 +52,13 @@ export function FlightPanel({ params }: { params: Promise<{ callsign: string }> 
           ) : (
             <>
               <p>
-                <b className="text-white">{callsign}</b> is not currently online on VATSIM.
+                {unavailable ? (
+                  <>Flight details for <b className="text-white">{callsign}</b> are temporarily unavailable. Retrying…</>
+                ) : (
+                  <>
+                    <b className="text-white">{callsign}</b> is not currently online on VATSIM.
+                  </>
+                )}
               </p>
               <button onClick={() => router.push("/")} className="rounded-full bg-white/10 px-4 py-1.5 text-white hover:bg-white/15">
                 Back to map
@@ -72,7 +79,13 @@ export function FlightPanel({ params }: { params: Promise<{ callsign: string }> 
         ) : (
           <>
             <span>
-              <b className="text-white">{callsign}</b> is not online on VATSIM.
+              {unavailable ? (
+                <>Details for <b className="text-white">{callsign}</b> temporarily unavailable.</>
+              ) : (
+                <>
+                  <b className="text-white">{callsign}</b> is not online on VATSIM.
+                </>
+              )}
             </span>
             <button onClick={() => router.push("/")} className="rounded-full bg-white/10 px-3 py-1 text-white">
               Close

@@ -1,6 +1,13 @@
+import { fallbackStore } from "@/lib/fallback";
 import { json, traffic } from "@/lib/traffic";
 
 export async function GET(req: Request) {
-  const q = new URL(req.url).searchParams.get("q") ?? "";
-  return json(await traffic().search(q.slice(0, 40)), 10);
+  const q = (new URL(req.url).searchParams.get("q") ?? "").slice(0, 40);
+  try {
+    return json(await traffic().search(q), 10);
+  } catch (e) {
+    console.error("search via Durable Object failed, using fallback", e);
+    const { search } = await import("@/lib/derive");
+    return json(JSON.stringify(search(await fallbackStore(), q)), 10);
+  }
 }

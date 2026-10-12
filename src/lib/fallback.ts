@@ -43,3 +43,30 @@ export async function fallbackFlights(): Promise<string> {
   };
   return JSON.stringify(body);
 }
+
+/**
+ * One-shot traffic store built from the current feed (cached ~15 s per
+ * isolate), for detail routes when the Durable Object is unavailable.
+ * Loaded lazily so the airport database only lands in those route chunks.
+ */
+let cachedStore: { at: number; store: Promise<import("./traffic-store").TrafficStore> } | null = null;
+
+export function fallbackStore() {
+  if (!cachedStore || Date.now() - cachedStore.at > 15_000) {
+    cachedStore = {
+      at: Date.now(),
+      store: (async () => {
+        const [{ TrafficStore }, res] = await Promise.all([
+          import("./traffic-store"),
+          fetch(VATSIM_FEED, { headers: { "user-agent": USER_AGENT } }),
+        ]);
+        if (!res.ok) throw new Error(`VATSIM feed HTTP ${res.status}`);
+        const store = new TrafficStore();
+        store.ingest((await res.json()) as VatsimFeed);
+        return store;
+      })(),
+    };
+    cachedStore.store.catch(() => (cachedStore = null));
+  }
+  return cachedStore.store;
+}

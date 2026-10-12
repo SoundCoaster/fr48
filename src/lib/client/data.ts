@@ -37,6 +37,8 @@ export function useLiveFlights(intervalMs = 7500) {
 interface Resource<T> {
   data: T | null;
   error: boolean;
+  /** Last request failed for another reason than "not found" (server or network error). */
+  failed: boolean;
   loading: boolean;
   listeners: Set<() => void>;
   timer?: ReturnType<typeof setInterval>;
@@ -44,13 +46,13 @@ interface Resource<T> {
 
 const resources = new Map<string, Resource<unknown>>();
 
-function usePolled<T>(url: string | null, intervalMs: number): { data: T | null; error: boolean; loading: boolean } {
+function usePolled<T>(url: string | null, intervalMs: number): { data: T | null; error: boolean; failed: boolean; loading: boolean } {
   const [, force] = useState(0);
   useEffect(() => {
     if (!url) return;
     let r = resources.get(url) as Resource<T> | undefined;
     if (!r) {
-      r = { data: null, error: false, loading: true, listeners: new Set() };
+      r = { data: null, error: false, failed: false, loading: true, listeners: new Set() };
       resources.set(url, r as Resource<unknown>);
     }
     const res = r;
@@ -61,12 +63,15 @@ function usePolled<T>(url: string | null, intervalMs: number): { data: T | null;
         if (resp.status === 404) {
           res.data = null;
           res.error = true;
+          res.failed = false;
         } else if (resp.ok) {
           res.data = (await resp.json()) as T;
           res.error = false;
-        }
+          res.failed = false;
+        } else res.failed = true;
       } catch {
         // keep last good data
+        res.failed = true;
       }
       res.loading = false;
       notify();
@@ -86,7 +91,7 @@ function usePolled<T>(url: string | null, intervalMs: number): { data: T | null;
     };
   }, [url, intervalMs]);
   const r = url ? (resources.get(url) as Resource<T> | undefined) : undefined;
-  return { data: r?.data ?? null, error: r?.error ?? false, loading: r?.loading ?? !!url };
+  return { data: r?.data ?? null, error: r?.error ?? false, failed: r?.failed ?? false, loading: r?.loading ?? !!url };
 }
 
 export const useFlightDetail = (callsign: string | null) =>
