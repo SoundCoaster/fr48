@@ -102,18 +102,7 @@ function installLayers(map: MLMap) {
     "icon-anchor": "bottom",
     "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 0.36, 6, 0.5, 10, 0.75, 14, 1],
     "icon-allow-overlap": true,
-    "text-field": ["get", "code"],
-    "text-font": ["Montserrat Medium", "Open Sans Bold", "Noto Sans Regular"],
-    "text-size": 11,
-    "text-offset": [0, 0.25],
-    "text-anchor": "top",
-    "text-optional": true,
   } satisfies SymbolLayerSpecification["layout"];
-  const pinPaint = {
-    "text-color": isDark ? "#e8edf2" : "#24313d",
-    "text-halo-color": isDark ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,0.9)",
-    "text-halo-width": 1.4,
-  };
   map.addLayer({
     id: "airports-pin",
     type: "symbol",
@@ -123,10 +112,7 @@ function installLayers(map: MLMap) {
       ...pinLayout,
       "icon-image": ["case", ["==", ["get", "hl"], 1], "airport-hover", "airport"],
       "symbol-sort-key": ["get", "hl"],
-      // Codes only once zoomed in a bit further than the pin itself
-      "text-field": ["step", ["zoom"], "", 8, ["get", "code"]],
     },
-    paint: pinPaint,
   });
   map.addLayer({
     id: "airports-pin-hover",
@@ -139,7 +125,6 @@ function installLayers(map: MLMap) {
       "icon-image": "airport-hover",
       "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 0.45, 6, 0.625, 10, 0.94, 14, 1.25],
     },
-    paint: pinPaint,
   });
   const planeIcon = {
     "icon-rotate": ["get", "h"],
