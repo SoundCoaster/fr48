@@ -175,7 +175,7 @@ function google(session: string, key: string): StyleSpecification {
         type: "raster",
         source: "google",
         // Fitted to colours sampled from FR24 (ocean, vegetation, desert)
-        paint: { "raster-brightness-max": 0.475, "raster-brightness-min": 0.09, "raster-fade-duration": 150 },
+        paint: { "raster-brightness-max": 0.58, "raster-brightness-min": 0.1, "raster-fade-duration": 150 },
       },
     ],
   };
