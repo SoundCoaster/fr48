@@ -250,3 +250,30 @@ export interface SearchResults {
   airports: MiniAirport[];
   airlines: (Airline & { live: number })[];
 }
+
+// ---- Online ATC -------------------------------------------------------------
+
+export interface AtcStation {
+  callsign: string;
+  name: string;
+  frequency: string;
+  /** Callsign suffix: CTR, FSS, APP, DEP, TWR, GND, DEL, ATIS… */
+  facility: string;
+  rating: string;
+  logonTime: string;
+  atis: string[] | null;
+  atisCode: string | null;
+  /** What to light up on the map */
+  kind: "fir" | "tracon" | "approach" | "airport" | "unknown";
+  /** FIR boundary ids (kind "fir") */
+  boundaries?: string[];
+  /** TRACON boundary id (kind "tracon") */
+  tracon?: string;
+  /** Airport for tower/ground/delivery/ATIS, or approach without a TRACON shape */
+  airport?: { icao: string; iata: string; name: string; lat: number; lon: number };
+}
+
+export interface AtcResponse {
+  updated: string;
+  stations: AtcStation[];
+}

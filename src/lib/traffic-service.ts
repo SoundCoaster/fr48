@@ -1,3 +1,4 @@
+import { atcStations } from "./atc";
 import { airportDetail, airportRows, flightDetail, flightRows, search } from "./derive";
 import { frameRows, MemoryHistory, type HistoryStore } from "./history";
 import { TrafficStore } from "./traffic-store";
@@ -102,6 +103,11 @@ export class TrafficService {
   async airports(): Promise<string> {
     await this.ensureFresh();
     return this.cached("airports", () => airportRows(this.store));
+  }
+
+  async atc(): Promise<string> {
+    await this.ensureFresh();
+    return this.cached("atc", () => atcStations(this.store));
   }
 
   async playbackRange(): Promise<string> {

@@ -178,3 +178,59 @@ body {
   border: 3px solid #fff;
   box-shadow: 0 0 0 6px rgba(47, 128, 237, 0.25), 0 1px 4px rgba(0, 0, 0, 0.4);
 }
+
+/* Online ATC popup */
+.fr-atc-popup .maplibregl-popup-content {
+  background: #2a2b2e;
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+.fr-atc-popup .maplibregl-popup-tip {
+  border-top-color: #2a2b2e;
+  border-bottom-color: #2a2b2e;
+}
+.fr-atc-popup .maplibregl-popup-close-button {
+  color: #aaa;
+  font-size: 16px;
+  padding: 2px 6px;
+}
+.fr-atc h3 {
+  margin: 0 18px 6px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fr-yellow);
+}
+.fr-atc ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.fr-atc li {
+  padding: 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.fr-atc .row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+.fr-atc .freq {
+  font-family: var(--font-mono);
+  color: #7fd0a0;
+}
+.fr-atc .sub {
+  font-size: 11px;
+  color: #9ea3ab;
+}
+.fr-atc .atis {
+  margin: 4px 0 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: #c9ccd1;
+}

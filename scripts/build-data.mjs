@@ -10,6 +10,8 @@ const SRC = {
   ofAirports: "https://raw.githubusercontent.com/jpatokal/openflights/master/data/airports.dat",
   ofAirlines: "https://raw.githubusercontent.com/jpatokal/openflights/master/data/airlines.dat",
   oaRunways: "https://davidmegginson.github.io/ourairports-data/runways.csv",
+  firBoundaries: "https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson",
+  traconBoundaries: "https://github.com/vatsimnetwork/simaware-tracon-project/releases/latest/download/TRACONBoundaries.geojson",
 };
 
 const get = async (url) => {
@@ -40,7 +42,7 @@ function parseCsv(text) {
 const nul = (v) => (v === "\\N" || v === undefined ? "" : v);
 const round = (n, d = 4) => Math.round(n * 10 ** d) / 10 ** d;
 
-const [vatspy, oaAirportsTxt, oaCountriesTxt, ofAirportsTxt, ofAirlinesTxt, oaRunwaysTxt] = await Promise.all(
+const [vatspy, oaAirportsTxt, oaCountriesTxt, ofAirportsTxt, ofAirlinesTxt, oaRunwaysTxt, firTxt, traconTxt] = await Promise.all(
   Object.values(SRC).map(get),
 );
 
@@ -137,3 +139,60 @@ const chunks = {};
 for (const [icao, list] of Object.entries(runways)) (chunks[icao.slice(0, 2)] ??= {})[icao] = list;
 for (const [prefix, data] of Object.entries(chunks)) await writeFile(`public/runways/${prefix}.json`, JSON.stringify(data));
 console.log(`runways: ${Object.keys(runways).length} airports in ${Object.keys(chunks).length} chunks`);
+
+// --- ATC: FIR/UIR callsign mapping (server) and simplified boundaries (static, client)
+
+// Ramer-Douglas-Peucker on one ring, then round to ~100 m
+function simplifyRing(ring, tol) {
+  if (ring.length <= 4) return ring;
+  const keep = new Uint8Array(ring.length);
+  keep[0] = keep[ring.length - 1] = 1;
+  const stack = [[0, ring.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    const [ax, ay] = ring[a], [bx, by] = ring[b];
+    const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy) || 1e-12;
+    let max = 0, idx = -1;
+    for (let i = a + 1; i < b; i++) {
+      const d = Math.abs(dy * ring[i][0] - dx * ring[i][1] + bx * ay - by * ax) / len;
+      if (d > max) { max = d; idx = i; }
+    }
+    if (max > tol && idx > 0) { keep[idx] = 1; stack.push([a, idx], [idx, b]); }
+  }
+  const out = ring.filter((_, i) => keep[i]).map(([x, y]) => [round(x, 3), round(y, 3)]);
+  return out.length >= 4 ? out : ring.map(([x, y]) => [round(x, 3), round(y, 3)]);
+}
+const simplifyGeom = (g, tol) =>
+  g.type === "Polygon"
+    ? { type: "Polygon", coordinates: g.coordinates.map((r) => simplifyRing(r, tol)) }
+    : { type: "MultiPolygon", coordinates: g.coordinates.map((p) => p.map((r) => simplifyRing(r, tol))) };
+
+const firs = section("FIRs").map((l) => l.split("|")).map(([icao, name, prefix, boundary]) => [icao, name, prefix || "", boundary || icao]);
+const uirs = section("UIRs").map((l) => l.split("|")).map(([icao, name, list]) => [icao, name, (list || "").split(",").filter(Boolean)]);
+await writeFile("src/data/firs.json", JSON.stringify({ firs, uirs }));
+
+const firGeo = JSON.parse(firTxt);
+await mkdir("public/atc", { recursive: true });
+await writeFile(
+  "public/atc/firs.geojson",
+  JSON.stringify({
+    type: "FeatureCollection",
+    features: firGeo.features.map((f) => ({
+      type: "Feature",
+      properties: { id: f.properties.id, oceanic: f.properties.oceanic === "1" ? 1 : 0, lon: +f.properties.label_lon, lat: +f.properties.label_lat },
+      geometry: simplifyGeom(f.geometry, 0.02),
+    })),
+  }),
+);
+
+const traconGeo = JSON.parse(traconTxt);
+const tracons = traconGeo.features.map((f) => [f.properties.id, f.properties.prefix, f.properties.name]);
+await writeFile("src/data/tracons.json", JSON.stringify(tracons));
+await writeFile(
+  "public/atc/tracons.geojson",
+  JSON.stringify({
+    type: "FeatureCollection",
+    features: traconGeo.features.map((f) => ({ type: "Feature", properties: { id: f.properties.id }, geometry: simplifyGeom(f.geometry, 0.005) })),
+  }),
+);
+console.log(`ATC: ${firs.length} FIR entries, ${uirs.length} UIRs, ${firGeo.features.length} FIR shapes, ${tracons.length} TRACONs`);

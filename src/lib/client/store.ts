@@ -16,6 +16,8 @@ export interface Settings {
   timeZone: "utc" | "local";
   weather: boolean;
   dayNight: boolean;
+  /** Show online VATSIM ATC (FIRs, approach areas, airport positions). */
+  atc: boolean;
   widgets: { tracked: boolean; airports: boolean; bookmarks: boolean };
 }
 
@@ -47,6 +49,7 @@ export const DEFAULT_SETTINGS: Settings = {
   timeZone: "local",
   weather: false,
   dayNight: true,
+  atc: false,
   widgets: { tracked: true, airports: true, bookmarks: true },
 };
 

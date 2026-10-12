@@ -79,5 +79,6 @@ export class TrafficTracker extends DurableObject {
   async airports() { await this.touch(); return this.service.airports(); }
   async search(q: string) { await this.touch(); return this.service.search(q); }
   async playbackRange() { await this.touch(); return this.service.playbackRange(); }
+  async atc() { await this.touch(); return this.service.atc(); }
   async playback(from: number, minutes: number) { await this.touch(); return this.service.playback(from, minutes); }
 }

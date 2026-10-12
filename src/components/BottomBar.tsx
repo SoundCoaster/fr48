@@ -144,6 +144,7 @@ function SettingsPanel() {
           <Toggle label="Airports" checked={s.airports} onChange={(v) => updateSettings({ airports: v })} />
           <Toggle label="Weather radar" checked={s.weather} onChange={(v) => updateSettings({ weather: v })} />
           <Toggle label="Day / night" checked={s.dayNight} onChange={(v) => updateSettings({ dayNight: v })} />
+          <Toggle label="ATC online" checked={s.atc} onChange={(v) => updateSettings({ atc: v })} />
           <div className="flex items-center justify-between text-sm">
             <span>Aircraft size</span>
             <input

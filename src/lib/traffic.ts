@@ -9,6 +9,7 @@ export interface TrafficApi {
   airports(): Promise<string>;
   search(q: string): Promise<string>;
   playbackRange(): Promise<string>;
+  atc(): Promise<string>;
   playback(from: number, minutes: number): Promise<string>;
 }
 
@@ -35,6 +36,7 @@ const localApi: TrafficApi = {
   airports: async () => (await local()).airports(),
   search: async (q) => (await local()).search(q),
   playbackRange: async () => (await local()).playbackRange(),
+  atc: async () => (await local()).atc(),
   playback: async (from, minutes) => (await local()).playback(from, minutes),
 };
 

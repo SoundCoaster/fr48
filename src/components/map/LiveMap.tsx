@@ -9,6 +9,7 @@ import { SILHOUETTE_SCALE, SILHOUETTES, type Silhouette } from "@/data/aircraft"
 import { mapInstance } from "./instance";
 import { sampleAt, trailAt } from "@/lib/client/playback";
 import type { View3D } from "./view3d";
+import { ATC_CLICK_LAYERS, atcPopupHtml, installAtcLayers, syncAtc } from "./atcLayer";
 import { syncNight } from "./daynight";
 import { GoogleAttribution } from "./GoogleAttribution";
 import { isDarkStyle, resolveStyle, STYLES } from "./styles";
@@ -91,6 +92,8 @@ function installLayers(map: MLMap) {
       "line-dasharray": [2, 2.5],
     },
   });
+  // Online ATC sits under the traffic (and above the day/night shading)
+  installAtcLayers(map, isDark, "route");
   map.addLayer({
     id: "trail",
     type: "line",
@@ -330,7 +333,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
     map.on("error", (e) => console.error("[map]", e.error?.message ?? e));
     map.on("style.load", () => {
       installLayers(map);
-      syncNight(map, getState().settings.dayNight, "route");
+      syncNight(map, getState().settings.dayNight, "atc-fir-fill");
       syncRadar(map, getState().settings.weather);
       forceRef.current++;
       refreshAirports();
@@ -416,6 +419,14 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       );
       const plane = hits.find((h) => h.layer.id === "flights");
       const apt = hits.find((h) => h.layer.id === "airports-pin");
+      // Online ATC: airport badge first; areas only when no panel needs closing
+      const atcHits = getState().settings.atc ? map.queryRenderedFeatures(e.point, { layers: ATC_CLICK_LAYERS.filter((l) => map.getLayer(l)) }) : [];
+      const atcBadge = atcHits.find((h) => h.layer.id === "atc-apt");
+      const atcArea = atcHits.find((h) => h.layer.id !== "atc-apt");
+      const showAtc = (key: string) => {
+        const html = atcPopupHtml(key);
+        if (html) new maplibregl.Popup({ maxWidth: "320px", className: "fr-atc-popup" }).setLngLat(e.lngLat).setHTML(html).addTo(map);
+      };
       // In 3D the pointer orbits the camera; don't treat taps as map clicks
       if (getState().view3d) return;
       if (getState().playback) {
@@ -429,7 +440,9 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
         flewToRef.current = plane.properties.cs;
         router.push(`/${encodeURIComponent(plane.properties.cs)}`);
       } else if (apt) router.push(`/airport/${apt.properties.icao}`);
+      else if (atcBadge) showAtc(atcBadge.properties.key);
       else if (selectedRef.current || window.location.pathname !== "/") router.push("/");
+      else if (atcArea) showAtc(atcArea.properties.key);
     });
 
     // ---- animation loop: dead-reckon every aircraft between feed updates
@@ -610,15 +623,31 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
     if (!selected && getState().view3d) setState({ view3d: false });
   }, [selected]);
 
+  // ---- online ATC, refreshed every minute while enabled
+  const atcOn = useStore((s) => s.settings.atc);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const run = () => {
+      const m = mapRef.current;
+      if (m?.isStyleLoaded() && !document.hidden) syncAtc(m, getState().settings.atc);
+    };
+    if (map.isStyleLoaded()) syncAtc(map, atcOn);
+    else map.once("idle", run);
+    if (!atcOn) return;
+    const t = setInterval(run, 60_000);
+    return () => clearInterval(t);
+  }, [atcOn]);
+
   // ---- day/night shading, redrawn every minute
   const dayNight = useStore((s) => s.settings.dayNight);
   useEffect(() => {
     const map = mapRef.current;
-    if (map?.isStyleLoaded()) syncNight(map, dayNight, "route");
+    if (map?.isStyleLoaded()) syncNight(map, dayNight, "atc-fir-fill");
     if (!dayNight) return;
     const t = setInterval(() => {
       const m = mapRef.current;
-      if (m?.isStyleLoaded() && !document.hidden) syncNight(m, true, "route");
+      if (m?.isStyleLoaded() && !document.hidden) syncNight(m, true, "atc-fir-fill");
     }, 60_000);
     return () => clearInterval(t);
   }, [dayNight]);
