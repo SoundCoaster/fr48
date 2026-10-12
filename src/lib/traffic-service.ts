@@ -1,4 +1,5 @@
 import { airportDetail, airportRows, flightDetail, flightRows, search } from "./derive";
+import { frameRows, MemoryHistory, type HistoryStore } from "./history";
 import { TrafficStore } from "./traffic-store";
 import type { VatsimFeed } from "./types";
 
@@ -18,6 +19,18 @@ export class TrafficService {
   private cache = new Map<string, { version: number; body: string }>();
   /** callsign -> timestamps (ms) of recent detail requests, to estimate live viewers. */
   private views = new Map<string, number[]>();
+  /** Minute (unix s) of the last playback frame recorded. */
+  private lastFrame = 0;
+
+  constructor(private history: HistoryStore = new MemoryHistory()) {}
+
+  /** Record one playback frame per minute of feed time. */
+  private async recordFrame() {
+    const t = Math.floor(this.store.updated / 60_000) * 60;
+    if (!t || t === this.lastFrame) return;
+    this.lastFrame = t;
+    await this.history.put(t, frameRows(this.store));
+  }
 
   /** Each open flight panel polls every 15 s, so requests in the last 15 s ≈ viewers. */
   private viewers(): Map<string, number> {
@@ -42,6 +55,7 @@ export class TrafficService {
         const feed = (await res.json()) as VatsimFeed;
         this.store.ingest(feed);
         this.lastFetch = Date.now();
+        await this.recordFrame().catch((e) => console.error("history write failed", e));
       } finally {
         this.inflight = null;
       }
@@ -88,6 +102,16 @@ export class TrafficService {
   async airports(): Promise<string> {
     await this.ensureFresh();
     return this.cached("airports", () => airportRows(this.store));
+  }
+
+  async playbackRange(): Promise<string> {
+    return JSON.stringify(await this.history.bounds());
+  }
+
+  /** Frames for [from, from + minutes), as {"frames":[[t, rows], ...]} without re-parsing rows. */
+  async playback(from: number, minutes: number): Promise<string> {
+    const frames = await this.history.read(from, from + minutes * 60);
+    return `{"frames":[${frames.map(([t, rows]) => `[${t},${rows}]`).join(",")}]}`;
   }
 
   async search(q: string): Promise<string> {

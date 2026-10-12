@@ -4,6 +4,7 @@ import { Loader2, Maximize2, Minimize2, Minus, Navigation, Plus } from "lucide-r
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import type { Marker } from "maplibre-gl";
+import { useStore } from "@/lib/client/store";
 import { mapInstance } from "./instance";
 
 let meMarker: Marker | null = null;
@@ -39,6 +40,7 @@ export function MapControls() {
   const [busy, setBusy] = useState(false);
   // On phones the flight/airport sheet covers the bottom of the screen
   const panelOpen = usePathname() !== "/";
+  const playback = useStore((s) => s.playback !== null);
   useEffect(() => {
     const onChange = () => setFull(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", onChange);
@@ -68,7 +70,7 @@ export function MapControls() {
       </RoundButton>
     </div>
     {/* Phones: locate button above the bottom bar */}
-    {!panelOpen && (
+    {!panelOpen && !playback && (
       <div className="pointer-events-auto absolute bottom-[calc(env(safe-area-inset-bottom)+76px)] right-3 z-20 sm:hidden">
         <RoundButton label="My location" onClick={() => locate(setBusy)}>
           {busy ? <Loader2 size={18} className="animate-spin" /> : <Navigation size={18} strokeWidth={1.6} />}

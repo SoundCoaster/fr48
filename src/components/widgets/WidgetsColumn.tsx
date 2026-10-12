@@ -29,7 +29,8 @@ type WidgetKey = keyof Settings["widgets"];
 export function WidgetsColumn() {
   const pathname = usePathname();
   const widgets = useStore((s) => s.settings.widgets);
-  if (pathname !== "/" || !(widgets.tracked || widgets.airports || widgets.bookmarks)) return null;
+  const playback = useStore((s) => s.playback !== null);
+  if (pathname !== "/" || playback || !(widgets.tracked || widgets.airports || widgets.bookmarks)) return null;
   return (
     <div className="fr-scroll pointer-events-auto absolute bottom-[80px] left-3 top-3 z-20 hidden w-[290px] flex-col gap-2 overflow-y-auto sm:flex">
       {widgets.tracked && <MostTracked />}

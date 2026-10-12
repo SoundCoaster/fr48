@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { SILHOUETTE_SCALE, SILHOUETTES, type Silhouette } from "@/data/aircraft";
 import { mapInstance } from "./instance";
+import { sampleAt, trailAt } from "@/lib/client/playback";
+import type { View3D } from "./view3d";
 import { syncNight } from "./daynight";
 import { GoogleAttribution } from "./GoogleAttribution";
 import { isDarkStyle, resolveStyle, STYLES } from "./styles";
@@ -429,6 +431,15 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       );
       const plane = hits.find((h) => h.layer.id === "flights");
       const apt = hits.find((h) => h.layer.id === "airports-pin");
+      // In 3D the pointer orbits the camera; don't treat taps as map clicks
+      if (getState().view3d) return;
+      if (getState().playback) {
+        // Playback: select locally (the flight may no longer be online)
+        if (plane) setState({ playbackSel: plane.properties.cs });
+        else if (apt) router.push(`/airport/${apt.properties.icao}`);
+        else setState({ playbackSel: null });
+        return;
+      }
       if (plane) {
         flewToRef.current = plane.properties.cs;
         router.push(`/${encodeURIComponent(plane.properties.cs)}`);
@@ -446,14 +457,17 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       const dt = Math.min(1, (now - lastFrame) / 1000);
       lastFrame = now;
       const st = getState();
-      const selNow = selectedRef.current ? displayRef.current.get(selectedRef.current) : undefined;
-      if (selNow) {
+      const pb = st.playback;
+      // In playback the selection is local, not the routed live flight
+      const selCs = pb ? st.playbackSel : selectedRef.current;
+      const selNow = selCs ? displayRef.current.get(selCs) : undefined;
+      if (selNow && !st.view3d) {
         const { x, y } = map.project([selNow.lon, selNow.lat]);
-        selLabel.textContent = selectedRef.current;
+        selLabel.textContent = selCs;
         selLabel.style.transform = `translate(${x}px, ${y - 22}px) translate(-50%, -100%)`;
         selLabel.style.opacity = "1";
       } else selLabel.style.opacity = "0";
-      const hoverNow = hoverCs && hoverCs !== selectedRef.current ? displayRef.current.get(hoverCs) : undefined;
+      const hoverNow = hoverCs && hoverCs !== selCs ? displayRef.current.get(hoverCs) : undefined;
       if (hoverNow) {
         const { x, y } = map.project([hoverNow.lon, hoverNow.lat]);
         tip.style.transform = `translate(${x}px, ${y - 22}px) translate(-50%, -100%)`;
@@ -464,7 +478,8 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       if (aptRow) placeAptLabel(aptRow, aptIcao === hoverApt);
       else if (aptLabel.style.opacity !== "0") aptLabel.style.opacity = "0";
       const src = map.getSource("flights") as GeoJSONSource | undefined;
-      if (!st.data || !src) return;
+      const rows = pb ? sampleAt(pb.t) : st.data?.flights;
+      if (!rows || !src) return;
 
       const zoom = map.getZoom();
       const interval = zoom < 4 ? 2000 : zoom < 6 ? 1000 : zoom < 8 ? 250 : 80;
@@ -473,9 +488,10 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       lastPush = now;
       lastForce = forceRef.current;
 
-      const age0 = (st.data.serverTime - Date.parse(st.data.updated)) / 1000;
-      const elapsed = Math.min(90, Math.max(0, age0 + (Date.now() - st.receivedAt) / 1000));
-      const sel = selectedRef.current;
+      // Live: dead-reckon from the feed time. Playback rows are already interpolated.
+      const age0 = !pb && st.data ? (st.data.serverTime - Date.parse(st.data.updated)) / 1000 : 0;
+      const elapsed = pb ? 0 : Math.min(90, Math.max(0, age0 + (Date.now() - st.receivedAt) / 1000));
+      const sel = selCs;
       const display = displayRef.current;
       const bounds = map.getBounds();
       const pad = 3;
@@ -492,7 +508,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       const features: GeoJSON.Feature[] = [];
       const seen = new Set<string>();
 
-      for (const f of st.data.flights) {
+      for (const f of rows) {
         const [cs, lat, lon, hdg, alt, gs, type, dep, arr, , , ground, rowSil] = f;
         const sil: Silhouette = cs.startsWith("SANTA") ? "santa" : (rowSil as Silhouette);
         const isSel = cs === sel;
@@ -500,7 +516,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
         seen.add(cs);
         const [tLat, tLon] = gs > 5 ? destination(lat, lon, hdg, (gs * elapsed) / 3600) : [lat, lon];
         let d = display.get(cs);
-        if (!d || distanceNm(d.lat, d.lon, tLat, tLon) > 8) {
+        if (pb || !d || distanceNm(d.lat, d.lon, tLat, tLon) > 8) {
           d = { lat: tLat, lon: tLon, hdg };
           display.set(cs, d);
         } else {
@@ -534,7 +550,13 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       const live = sel ? display.get(sel) : undefined;
       const trailSrc = map.getSource("trail") as GeoJSONSource | undefined;
       const routeSrc = map.getSource("route") as GeoJSONSource | undefined;
-      if (det && trailSrc && routeSrc) {
+      if (pb) {
+        // Replayed track from the recorded frames
+        const pts = sel ? trailAt(sel, pb.t) : [];
+        const fake = { trail: pts.map(([lon, lat, alt]) => [lon, lat, alt, 0, 0]) } as unknown as FlightDetail;
+        trailSrc?.setData({ type: "FeatureCollection", features: pts.length ? trailFeatures(fake, live) : [] });
+        routeSrc?.setData(EMPTY);
+      } else if (det && trailSrc && routeSrc) {
         trailSrc.setData({ type: "FeatureCollection", features: trailFeatures(det, live) });
         const dest = det.destination;
         routeSrc.setData(
@@ -546,8 +568,8 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
         trailSrc?.setData(EMPTY);
         routeSrc?.setData(EMPTY);
       }
-      if (live && getState().follow && !map.isMoving()) map.jumpTo({ center: [live.lon, live.lat] });
-      if (sel && live && flewToRef.current !== sel) {
+      if (live && getState().follow && !st.view3d && !map.isMoving()) map.jumpTo({ center: [live.lon, live.lat] });
+      if (!pb && !st.view3d && sel && live && flewToRef.current !== sel) {
         flewToRef.current = sel;
         if (!map.getBounds().contains([live.lon, live.lat])) {
           map.flyTo({ center: [live.lon, live.lat], zoom: Math.max(map.getZoom(), 6), duration: 1200 });
@@ -566,6 +588,42 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ---- 3D chase view of the selected live flight
+  const view3d = useStore((s) => s.view3d);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !view3d || !selected) return;
+    let v: View3D | null = null;
+    let cancelled = false;
+    // Follow the selected aircraft, dead-reckoned from the latest feed row
+    const target = () => {
+      const st = getState();
+      const row = st.data?.flights.find((f) => f[0] === selectedRef.current);
+      if (!row || !st.data) return null;
+      const [, lat, lon, hdg, alt, gs, , , , , vs] = row;
+      const age = (st.data.serverTime - Date.parse(st.data.updated)) / 1000 + (Date.now() - st.receivedAt) / 1000;
+      const [la, lo] = gs > 5 ? destination(lat, lon, hdg, (gs * Math.min(90, Math.max(0, age))) / 3600) : [lat, lon];
+      return { lat: la, lon: lo, altFt: alt + (vs * Math.min(90, Math.max(0, age))) / 60, hdg, vsFpm: vs, gs };
+    };
+    import("./view3d").then(({ View3D }) => {
+      if (cancelled) return;
+      v = new View3D(map, target);
+      v.start();
+    });
+    // Leaving the style (map style switch) ends the 3D view
+    const onStyle = () => setState({ view3d: false });
+    map.once("style.load", onStyle);
+    return () => {
+      cancelled = true;
+      map.off("style.load", onStyle);
+      v?.stop();
+    };
+  }, [view3d, selected]);
+  // Deselecting or switching flight leaves 3D
+  useEffect(() => {
+    if (!selected && getState().view3d) setState({ view3d: false });
+  }, [selected]);
 
   // ---- day/night shading, redrawn every minute
   const dayNight = useStore((s) => s.settings.dayNight);

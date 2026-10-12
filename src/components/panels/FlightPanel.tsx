@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Box,
   ChevronDown,
   ChevronUp,
   Copy,
@@ -91,6 +92,7 @@ function MobileSheet({ detail: d, onClose }: { detail: FlightDetail; onClose: ()
   const s = useStore((st) => st.settings);
   const follow = useStore((st) => st.follow);
   const showRoute = useStore((st) => st.showRoute);
+  const view3d = useStore((st) => st.view3d);
   const now = useNow(15000) ?? 0;
 
   if (expanded) {
@@ -164,7 +166,8 @@ function MobileSheet({ detail: d, onClose }: { detail: FlightDetail; onClose: ()
         </div>
       </div>
 
-      <nav className="grid grid-cols-4 bg-[#2a2b2e] text-[11px]">
+      <nav className="grid grid-cols-5 bg-[#2a2b2e] text-[11px]">
+        <Action active={view3d} onClick={() => setState({ view3d: !view3d })} icon={<Box size={21} strokeWidth={1.5} />} label="3D view" />
         <Action active={showRoute} onClick={() => setState({ showRoute: !showRoute })} icon={<RouteGlyph />} label="Route" />
         <Action onClick={() => setExpanded(true)} icon={<ChevronUp size={22} strokeWidth={1.5} />} label="More info" />
         <Action active={follow} onClick={() => setState({ follow: !follow })} icon={<FollowGlyph />} label="Follow" />
@@ -430,6 +433,7 @@ function Field({ label, value, wide, mono }: { label: ReactNode; value: string; 
 function ActionBar({ d }: { d: FlightDetail }) {
   const follow = useStore((s) => s.follow);
   const showRoute = useStore((s) => s.showRoute);
+  const view3d = useStore((s) => s.view3d);
   const [shared, setShared] = useState(false);
   const [menu, setMenu] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -485,7 +489,8 @@ function ActionBar({ d }: { d: FlightDetail }) {
           </a>
         </div>
       )}
-      <nav className="grid grid-cols-4 bg-[#2a2b2e] text-[11px]">
+      <nav className="grid grid-cols-5 bg-[#2a2b2e] text-[11px]">
+        <Action active={view3d} onClick={() => setState({ view3d: !view3d })} icon={<Box size={21} strokeWidth={1.5} />} label="3D view" />
         <Action active={showRoute} onClick={() => setState({ showRoute: !showRoute })} icon={<RouteGlyph />} label="Route" />
         <Action active={follow} onClick={() => setState({ follow: !follow })} icon={<FollowGlyph />} label="Follow" />
         <Action onClick={share} icon={<Share size={21} strokeWidth={1.5} />} label={shared ? "Copied!" : "Share"} active={shared} />

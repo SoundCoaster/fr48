@@ -1,8 +1,9 @@
 "use client";
 
-import { CloudSunRain, Filter, LayoutPanelLeft, Settings, X } from "lucide-react";
-import { usePathname } from "next/navigation";
-import { useMemo, type ReactNode } from "react";
+import { CloudSunRain, Filter, History, LayoutPanelLeft, Settings, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { startPlayback } from "@/components/PlaybackBar";
 import {
   activeFilterCount,
   DEFAULT_FILTERS,
@@ -21,6 +22,15 @@ export function BottomBar() {
   const weather = useStore((s) => s.settings.weather);
   // On phones the flight/airport sheet takes the bottom of the screen
   const panelOpen = usePathname() !== "/";
+  const playback = useStore((s) => s.playback !== null);
+  const router = useRouter();
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [notice]);
+  if (playback) return null;
   const toggle = (p: NonNullable<typeof panel>) => setState({ panel: panel === p ? null : p });
 
   return (
@@ -49,7 +59,21 @@ export function BottomBar() {
           badge={nFilters || undefined}
         />
         <BarButton icon={<LayoutPanelLeft size={22} strokeWidth={1.6} />} label="Widgets" active={panel === "widgets"} onClick={() => toggle("widgets")} />
+        <BarButton
+          icon={<History size={22} strokeWidth={1.6} />}
+          label="Playback"
+          onClick={async () => {
+            const msg = await startPlayback();
+            if (msg) setNotice(msg);
+            else router.push("/");
+          }}
+        />
       </div>
+      {notice && (
+        <div className="pointer-events-auto absolute bottom-[calc(env(safe-area-inset-bottom)+72px)] left-1/2 z-30 w-[min(360px,calc(100%-24px))] -translate-x-1/2 rounded-lg bg-[#2a2b2e] px-3 py-2 text-center text-[13px] text-white shadow-xl ring-1 ring-white/10">
+          {notice}
+        </div>
+      )}
     </>
   );
 }
