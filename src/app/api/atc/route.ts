@@ -1,4 +1,4 @@
-import { fallbackStore } from "@/lib/fallback";
+import { edgeCached, fallbackStore } from "@/lib/fallback";
 import { json, traffic } from "@/lib/traffic";
 
 /** Online ATC stations resolved to FIRs, TRACONs and airports. */
@@ -7,7 +7,10 @@ export async function GET() {
     return json(await traffic().atc(), 30);
   } catch (e) {
     console.error("atc via Durable Object failed, using fallback", e);
-    const { atcStations } = await import("@/lib/atc");
-    return json(JSON.stringify(atcStations(await fallbackStore())), 30);
+    const body = await edgeCached("atc", 60, async () => {
+      const { atcStations } = await import("@/lib/atc");
+      return JSON.stringify(atcStations(await fallbackStore()));
+    });
+    return json(body!, 30);
   }
 }

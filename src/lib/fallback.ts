@@ -70,3 +70,24 @@ export function fallbackStore() {
   }
   return cachedStore.store;
 }
+
+/**
+ * Edge-cache a fallback payload (Cloudflare Cache API), so the expensive
+ * feed parse happens once per window instead of on every request; the free
+ * plan only allows ~10 ms CPU per request.
+ */
+export async function edgeCached(key: string, ttl: number, compute: () => Promise<string | null>): Promise<string | null> {
+  const cache = typeof caches !== "undefined" ? (caches as unknown as { default?: Cache }).default : undefined;
+  const req = new Request(`https://fr48-fallback.internal/${encodeURIComponent(key)}`);
+  if (cache) {
+    const hit = await cache.match(req);
+    if (hit) return hit.status === 204 ? null : hit.text();
+  }
+  const body = await compute();
+  if (cache) {
+    const res = body === null ? new Response(null, { status: 204 }) : new Response(body);
+    res.headers.set("cache-control", `public, max-age=${ttl}`);
+    await cache.put(req, res).catch(() => {});
+  }
+  return body;
+}

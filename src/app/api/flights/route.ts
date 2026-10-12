@@ -1,4 +1,4 @@
-import { fallbackFlights } from "@/lib/fallback";
+import { edgeCached, fallbackFlights } from "@/lib/fallback";
 import { json, traffic } from "@/lib/traffic";
 
 export async function GET() {
@@ -7,6 +7,6 @@ export async function GET() {
   } catch (e) {
     // Durable Object unavailable (quota, outage): keep the map alive from the raw feed
     console.error("flights via Durable Object failed, using fallback", e);
-    return json(await fallbackFlights());
+    return json((await edgeCached("flights", 15, fallbackFlights))!);
   }
 }

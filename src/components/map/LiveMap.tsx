@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { SILHOUETTE_SCALE, SILHOUETTES, type Silhouette } from "@/data/aircraft";
 import { mapInstance } from "./instance";
+import { motionAt, renderTime } from "@/lib/client/motion";
 import { sampleAt, trailAt } from "@/lib/client/playback";
 import type { View3D } from "./view3d";
 import { ATC_CLICK_LAYERS, atcPopupHtml, installAtcLayers, syncAtc } from "./atcLayer";
@@ -16,7 +17,7 @@ import { isDarkStyle, resolveStyle, STYLES } from "./styles";
 import { useAirportRows, useFlightDetail, type AirportRow } from "@/lib/client/data";
 import { getState, setState, subscribe, useStore, type Filters } from "@/lib/client/store";
 import { altitudeColor } from "@/lib/format";
-import { destination, distanceNm, greatCircle, unwrap } from "@/lib/geo";
+import { greatCircle, unwrap } from "@/lib/geo";
 import type { FlightDetail, FlightRow } from "@/lib/types";
 
 // Bundlers break MapLibre's self-located worker; serve it from /public instead (see postinstall).
@@ -248,8 +249,9 @@ function matches(f: FlightRow, flt: Filters): boolean {
   return true;
 }
 
-function trailFeatures(detail: FlightDetail, live: Display | undefined): GeoJSON.Feature[] {
-  const pts = detail.trail;
+function trailFeatures(detail: FlightDetail, live: Display | undefined, upTo = Infinity): GeoJSON.Feature[] {
+  // Aircraft are drawn slightly in the past: don't let the trail run ahead of the icon
+  const pts = detail.trail.filter((p) => p[4] <= upTo);
   const feats: GeoJSON.Feature[] = [];
   if (!pts.length) return feats;
   let color = altitudeColor(pts[0][2]);
@@ -447,13 +449,10 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
 
     // ---- animation loop: dead-reckon every aircraft between feed updates
     let raf = 0;
-    let lastFrame = performance.now();
     let lastPush = 0;
     let lastForce = -1;
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
-      const dt = Math.min(1, (now - lastFrame) / 1000);
-      lastFrame = now;
       const st = getState();
       const pb = st.playback;
       // In playback the selection is local, not the routed live flight
@@ -482,13 +481,12 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       const zoom = map.getZoom();
       const interval = zoom < 4 ? 2000 : zoom < 6 ? 1000 : zoom < 8 ? 250 : 80;
       if (now - lastPush < interval && lastForce === forceRef.current) return;
-      const elapsedPush = (now - lastPush) / 1000;
       lastPush = now;
       lastForce = forceRef.current;
 
-      // Live: dead-reckon from the feed time. Playback rows are already interpolated.
-      const age0 = !pb && st.data ? (st.data.serverTime - Date.parse(st.data.updated)) / 1000 : 0;
-      const elapsed = pb ? 0 : Math.min(90, Math.max(0, age0 + (Date.now() - st.receivedAt) / 1000));
+      // Live: smooth path between feed snapshots, drawn a little behind real time.
+      // Playback rows are already interpolated.
+      const tr = renderTime();
       const sel = selCs;
       const display = displayRef.current;
       const bounds = map.getBounds();
@@ -500,28 +498,20 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
         const l = unwrap((w + e2) / 2, lon);
         return l >= w && l <= e2;
       };
-      const smoothing = 1 - Math.exp(-Math.max(dt, elapsedPush) * 3);
       const k = st.settings.iconSize;
       const labels = st.settings.labels && zoom >= 6;
       const features: GeoJSON.Feature[] = [];
       const seen = new Set<string>();
 
       for (const f of rows) {
-        const [cs, lat, lon, hdg, alt, gs, type, dep, arr, , , ground, rowSil] = f;
+        const [cs, lat, lon, hdg, alt, , type, dep, arr, , , ground, rowSil] = f;
         const sil: Silhouette = cs.startsWith("SANTA") ? "santa" : (rowSil as Silhouette);
         const isSel = cs === sel;
         if (!isSel && !matches(f, st.filters)) continue;
         seen.add(cs);
-        const [tLat, tLon] = gs > 5 ? destination(lat, lon, hdg, (gs * elapsed) / 3600) : [lat, lon];
-        let d = display.get(cs);
-        if (pb || !d || distanceNm(d.lat, d.lon, tLat, tLon) > 8) {
-          d = { lat: tLat, lon: tLon, hdg };
-          display.set(cs, d);
-        } else {
-          d.lat += (tLat - d.lat) * smoothing;
-          d.lon += (unwrap(d.lon, tLon) - d.lon) * smoothing;
-          d.hdg = hdg;
-        }
+        const m = pb ? null : motionAt(cs, tr);
+        const d: Display = m ? { lat: m.lat, lon: m.lon, hdg: m.hdg } : { lat, lon, hdg };
+        display.set(cs, d);
         if (!isSel && !inView(d.lat, d.lon)) continue;
         features.push({
           type: "Feature",
@@ -529,7 +519,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
           properties: {
             cs,
             s: sil,
-            h: hdg,
+            h: d.hdg,
             sel: isSel ? 1 : 0,
             k: (SILHOUETTE_SCALE[sil] ?? 1) * (isSel ? k * 1.1 : k),
             t: type,
@@ -555,7 +545,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
         trailSrc?.setData({ type: "FeatureCollection", features: pts.length ? trailFeatures(fake, live) : [] });
         routeSrc?.setData(EMPTY);
       } else if (det && trailSrc && routeSrc) {
-        trailSrc.setData({ type: "FeatureCollection", features: trailFeatures(det, live) });
+        trailSrc.setData({ type: "FeatureCollection", features: trailFeatures(det, live, tr) });
         const dest = det.destination;
         routeSrc.setData(
           live && dest && det.status !== "landed" && getState().showRoute
@@ -594,15 +584,13 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
     if (!map || !view3d || !selected) return;
     let v: View3D | null = null;
     let cancelled = false;
-    // Follow the selected aircraft, dead-reckoned from the latest feed row
+    // Follow the selected aircraft along the same smooth path as the 2D map
     const target = () => {
-      const st = getState();
-      const row = st.data?.flights.find((f) => f[0] === selectedRef.current);
-      if (!row || !st.data) return null;
-      const [, lat, lon, hdg, alt, gs, , , , , vs] = row;
-      const age = (st.data.serverTime - Date.parse(st.data.updated)) / 1000 + (Date.now() - st.receivedAt) / 1000;
-      const [la, lo] = gs > 5 ? destination(lat, lon, hdg, (gs * Math.min(90, Math.max(0, age))) / 3600) : [lat, lon];
-      return { lat: la, lon: lo, altFt: alt + (vs * Math.min(90, Math.max(0, age))) / 60, hdg, vsFpm: vs, gs };
+      const cs = selectedRef.current;
+      const row = cs ? getState().data?.flights.find((f) => f[0] === cs) : undefined;
+      const m = cs ? motionAt(cs, renderTime()) : null;
+      if (!row || !m) return null;
+      return { lat: m.lat, lon: m.lon, altFt: m.alt, hdg: m.hdg, vsFpm: row[10], gs: m.gs };
     };
     import("./view3d").then(({ View3D }) => {
       if (cancelled) return;

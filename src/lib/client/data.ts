@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { AirportDetail, FlightDetail, FlightsResponse } from "../types";
+import { ingestFlights } from "./motion";
 import { setState } from "./store";
 
 /** Polls the live flight list into the global store. */
@@ -17,6 +18,7 @@ export function useLiveFlights(intervalMs = 7500) {
         const data = (await res.json()) as FlightsResponse;
         if (!stop && data.updated !== lastUpdated) {
           lastUpdated = data.updated;
+          ingestFlights(data, Date.now());
           setState({ data, receivedAt: Date.now(), error: false });
         }
       } catch {
