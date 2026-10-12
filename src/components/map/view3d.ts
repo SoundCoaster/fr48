@@ -289,30 +289,43 @@ export class View3D {
 
   stop() {
     cancelAnimationFrame(this.raf);
-    this.cleanup.forEach((f) => f());
-    this.cleanup = [];
+    this.layerReady = false;
     const map = this.map;
-    try {
-      map.setTerrain(null);
-      if (map.getSource("dem")) map.removeSource("dem");
-      for (const id of FLIGHT_LAYERS) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "visible");
-    } catch {
-      // style may have been replaced
-    }
-    map.setMaxPitch(60);
-    map.setMaxZoom(17);
-    map.setCenterClampedToGround(true);
-    try {
-      map.setSky({ "atmosphere-blend": 0, "sky-color": "#000000", "horizon-color": "#000000", "fog-color": "#000000", "fog-ground-blend": 0, "horizon-fog-blend": 0, "sky-horizon-blend": 0 });
-    } catch {
-      // style replaced
-    }
-    map.dragPan.enable();
-    map.scrollZoom.enable();
-    map.touchZoomRotate.enable();
-    map.touchZoomRotate.disableRotation();
-    map.doubleClickZoom.enable();
     const s = this.state;
-    map.easeTo({ pitch: 0, bearing: 0, zoom: 8, ...(s ? { center: [s.lon, s.lat] as [number, number] } : {}), duration: 800 });
+    // Every step is guarded: leaving 3D must never take the page down
+    const safe = (step: string, fn: () => void) => {
+      try {
+        fn();
+      } catch (e) {
+        console.warn(`[3d] ${step} failed`, e);
+      }
+    };
+    this.cleanup.forEach((f) => safe("cleanup", f));
+    this.cleanup = [];
+    safe("terrain", () => map.setTerrain(null));
+    safe("dem", () => map.getSource("dem") && map.removeSource("dem"));
+    safe("layers", () => {
+      for (const id of FLIGHT_LAYERS) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "visible");
+    });
+    // Bring the camera centre back to the ground in one jump (the chase camera left it at the
+    // aircraft's altitude, which confuses the 2D camera and tile selection if animated from)
+    safe("camera", () => {
+      map.setCenterClampedToGround(true);
+      map.jumpTo({ center: s ? [s.lon, s.lat] : map.getCenter(), elevation: 0, zoom: 8, pitch: 0, bearing: 0 });
+    });
+    safe("limits", () => {
+      map.setMaxPitch(60);
+      map.setMaxZoom(17);
+    });
+    safe("sky", () =>
+      map.setSky({ "atmosphere-blend": 0, "sky-color": "#000000", "horizon-color": "#000000", "fog-color": "#000000", "fog-ground-blend": 0, "horizon-fog-blend": 0, "sky-horizon-blend": 0 }),
+    );
+    safe("gestures", () => {
+      map.dragPan.enable();
+      map.scrollZoom.enable();
+      map.touchZoomRotate.enable();
+      map.touchZoomRotate.disableRotation();
+      map.doubleClickZoom.enable();
+    });
   }
 }
