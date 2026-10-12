@@ -125,8 +125,8 @@ interface Smoothed {
 export class View3D {
   private state: Smoothed | null = null;
   private orbitAz = 0; // degrees relative to "behind the aircraft"
-  private orbitEl = 14; // degrees above the horizon
-  private distance = 260; // metres
+  private orbitEl = 22; // degrees above the horizon (looking down at the aircraft and the ground)
+  private distance = 320; // metres
   private raf = 0;
   private last = performance.now();
   private cleanup: (() => void)[] = [];
@@ -146,6 +146,19 @@ export class View3D {
     }
     map.setTerrain({ source: "dem", exaggeration: 1 });
     map.setMaxPitch(85);
+    // A 300 m chase distance needs more zoom than the 2D map allows
+    map.setMaxZoom(21);
+    // Let the camera centre sit at the aircraft's altitude instead of being clamped to the ground
+    map.setCenterClampedToGround(false);
+    map.setSky({
+      "sky-color": "#5f97cf",
+      "horizon-color": "#cfe0ee",
+      "fog-color": "#c9d9e6",
+      "sky-horizon-blend": 0.7,
+      "horizon-fog-blend": 0.6,
+      "fog-ground-blend": 0.35,
+      "atmosphere-blend": 0,
+    });
     for (const id of FLIGHT_LAYERS) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none");
 
     // The camera is driven here; disable the map's own gestures and add orbit controls
@@ -222,7 +235,8 @@ export class View3D {
           .scale(new T.Vector3(scale, -scale, scale))
           .multiply(new T.Matrix4().makeRotationZ(-s.hdg * RAD))
           .multiply(new T.Matrix4().makeRotationX(s.pitch * RAD));
-        camera.projectionMatrix = new T.Matrix4().fromArray(args.modelViewProjectionMatrix as unknown as number[]).multiply(local);
+        // mainMatrix maps 0..1 web-mercator coordinates (MercatorCoordinate) to clip space
+        camera.projectionMatrix = new T.Matrix4().fromArray(args.defaultProjectionData.mainMatrix as unknown as number[]).multiply(local);
         renderer.resetState();
         renderer.render(scene, camera);
       },
@@ -286,6 +300,13 @@ export class View3D {
       // style may have been replaced
     }
     map.setMaxPitch(60);
+    map.setMaxZoom(17);
+    map.setCenterClampedToGround(true);
+    try {
+      map.setSky({ "atmosphere-blend": 0, "sky-color": "#000000", "horizon-color": "#000000", "fog-color": "#000000", "fog-ground-blend": 0, "horizon-fog-blend": 0, "sky-horizon-blend": 0 });
+    } catch {
+      // style replaced
+    }
     map.dragPan.enable();
     map.scrollZoom.enable();
     map.touchZoomRotate.enable();
