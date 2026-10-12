@@ -10,7 +10,6 @@ export interface TrafficApi {
   search(q: string): Promise<string>;
   playbackRange(): Promise<string>;
   playback(from: number, minutes: number): Promise<string>;
-  history(query: { callsign?: string; reg?: string }): Promise<string>;
 }
 
 type Local = TrafficApi;
@@ -37,7 +36,6 @@ const localApi: TrafficApi = {
   search: async (q) => (await local()).search(q),
   playbackRange: async () => (await local()).playbackRange(),
   playback: async (from, minutes) => (await local()).playback(from, minutes),
-  history: async (query) => (await local()).history(query),
 };
 
 /**

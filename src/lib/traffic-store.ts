@@ -39,43 +39,6 @@ export interface Track {
   trail: number[];
 }
 
-/** A finished flight leg, collected for the flight history. */
-export interface CompletedLeg {
-  callsign: string;
-  cid: number;
-  pilot: string;
-  fp: VatsimFlightPlan | null;
-  firstSeen: number;
-  lastSeen: number;
-  takeoffAt: number | null;
-  landedAt: number | null;
-  distanceNm: number;
-  maxAlt: number;
-}
-
-/** Summary of a track's current leg (also used for live entries in the history). */
-export function legOf(tr: Track): CompletedLeg {
-  let dist = 0;
-  let maxAlt = 0;
-  const s = tr.trail;
-  for (let i = 0; i < s.length; i += TRAIL_STRIDE) {
-    if (s[i + 2] > maxAlt) maxAlt = s[i + 2];
-    if (i >= TRAIL_STRIDE) dist += distanceNm(s[i - TRAIL_STRIDE], s[i - TRAIL_STRIDE + 1], s[i], s[i + 1]);
-  }
-  return {
-    callsign: tr.callsign,
-    cid: tr.cid,
-    pilot: tr.name,
-    fp: tr.fp,
-    firstSeen: tr.firstSeen,
-    lastSeen: tr.lastSeen,
-    takeoffAt: tr.takeoffAt,
-    landedAt: tr.landedAt,
-    distanceNm: Math.round(dist),
-    maxAlt: Math.max(maxAlt, tr.alt),
-  };
-}
-
 export interface StoreSnapshot {
   v: 1;
   updated: number;
@@ -97,13 +60,7 @@ export class TrafficStore {
   updated = 0;
   /** Bumped on every ingest; lets callers cache derived payloads. */
   version = 0;
-  /** Legs that ended since the last drain (new leg started, or track dropped). */
-  completed: CompletedLeg[] = [];
 
-  /** Only legs that actually flew are worth keeping in the history. */
-  private complete(tr: Track) {
-    if (tr.everAirborne || tr.takeoffAt !== null) this.completed.push(legOf(tr));
-  }
 
   ingest(feed: VatsimFeed): boolean {
     const updated = Date.parse(feed.general.update_timestamp);
@@ -217,16 +174,12 @@ export class TrafficStore {
     for (const [key, tr] of this.tracks) {
       if (seen.has(key)) continue;
       tr.online = false;
-      if (t - tr.lastSeen > RESUME_WINDOW_S) {
-        this.complete(tr);
-        this.tracks.delete(key);
-      }
+      if (t - tr.lastSeen > RESUME_WINDOW_S) this.tracks.delete(key);
     }
     return true;
   }
 
   private resetLeg(tr: Track, t: number) {
-    this.complete(tr);
     tr.trail = [];
     tr.takeoffAt = null;
     tr.landedAt = null;

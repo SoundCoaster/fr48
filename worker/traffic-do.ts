@@ -1,6 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { FLIGHT_LOG_DAYS, HISTORY_DAYS, type HistoryStore, type LegQuery } from "../src/lib/history";
-import type { FlightLog } from "../src/lib/types";
+import { HISTORY_DAYS, type HistoryStore } from "../src/lib/history";
 import { REFRESH_MS, TrafficService } from "../src/lib/traffic-service";
 import type { StoreSnapshot } from "../src/lib/traffic-store";
 
@@ -20,49 +19,8 @@ class SqlHistory implements HistoryStore {
   private writes = 0;
   constructor(private sql: SqlStorage) {
     sql.exec("CREATE TABLE IF NOT EXISTS frames (t INTEGER PRIMARY KEY, data BLOB NOT NULL)");
-    sql.exec(`CREATE TABLE IF NOT EXISTS flights (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      callsign TEXT NOT NULL, reg TEXT, cid INTEGER, pilot TEXT,
-      dep TEXT, arr TEXT, type TEXT,
-      std INTEGER, sta INTEGER, atd INTEGER, ata INTEGER,
-      first_seen INTEGER, last_seen INTEGER, dist INTEGER, max_alt INTEGER
-    )`);
-    sql.exec("CREATE INDEX IF NOT EXISTS flights_callsign ON flights (callsign, last_seen)");
-    sql.exec("CREATE INDEX IF NOT EXISTS flights_reg ON flights (reg, last_seen)");
-  }
-  private legWrites = 0;
-  async putLegs(logs: FlightLog[]) {
-    for (const l of logs) {
-      this.sql.exec(
-        "INSERT INTO flights (callsign, reg, cid, pilot, dep, arr, type, std, sta, atd, ata, first_seen, last_seen, dist, max_alt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        l.callsign, l.reg ? l.reg.replace(/-/g, "") : null, l.cid, l.pilot, l.dep, l.arr, l.type,
-        l.std, l.sta, l.atd, l.ata, l.firstSeen, l.lastSeen, l.distanceNm, l.maxAlt,
-      );
-    }
-    if (this.legWrites++ % 200 === 0) this.sql.exec("DELETE FROM flights WHERE last_seen < ?", Date.now() / 1000 - FLIGHT_LOG_DAYS * 86400);
-  }
-  async legs(q: LegQuery, limit: number): Promise<FlightLog[]> {
-    const where = q.callsign ? "callsign = ?" : "reg = ?";
-    const rows = this.sql
-      .exec<Record<string, string | number | null>>(`SELECT * FROM flights WHERE ${where} ORDER BY last_seen DESC LIMIT ?`, q.callsign ?? q.reg ?? "", limit)
-      .toArray();
-    return rows.map((r) => ({
-      callsign: r.callsign as string,
-      reg: (r.reg as string | null) ?? null,
-      cid: r.cid as number,
-      pilot: (r.pilot as string) ?? "",
-      dep: (r.dep as string) ?? "",
-      arr: (r.arr as string) ?? "",
-      type: (r.type as string) ?? "",
-      std: r.std as number | null,
-      sta: r.sta as number | null,
-      atd: r.atd as number | null,
-      ata: r.ata as number | null,
-      firstSeen: r.first_seen as number,
-      lastSeen: r.last_seen as number,
-      distanceNm: (r.dist as number) ?? 0,
-      maxAlt: (r.max_alt as number) ?? 0,
-    }));
+    // The flight-history table is gone (too many storage reads on the free plan)
+    sql.exec("DROP TABLE IF EXISTS flights");
   }
   async put(t: number, rows: string) {
     this.sql.exec("INSERT OR REPLACE INTO frames (t, data) VALUES (?, ?)", t, await gzip(rows));
@@ -73,8 +31,11 @@ class SqlHistory implements HistoryStore {
     return Promise.all(rows.map(async (r) => [r.t, await gunzip(r.data)] as [number, string]));
   }
   async bounds() {
-    const r = this.sql.exec<{ first: number | null; last: number | null }>("SELECT MIN(t) AS first, MAX(t) AS last FROM frames").one();
-    return r.first === null || r.last === null ? null : { first: r.first, last: r.last };
+    // Two indexed lookups: SQLite only uses the primary key for a lone MIN() or MAX(),
+    // a combined MIN(t), MAX(t) scans every row.
+    const first = this.sql.exec<{ t: number }>("SELECT t FROM frames ORDER BY t ASC LIMIT 1").toArray()[0]?.t;
+    const last = this.sql.exec<{ t: number }>("SELECT t FROM frames ORDER BY t DESC LIMIT 1").toArray()[0]?.t;
+    return first === undefined || last === undefined ? null : { first, last };
   }
 }
 
@@ -118,7 +79,6 @@ export class TrafficTracker extends DurableObject {
   async search(q: string) { await this.ready; return this.service.search(q); }
   async playbackRange() { await this.ready; return this.service.playbackRange(); }
   async playback(from: number, minutes: number) { await this.ready; return this.service.playback(from, minutes); }
-  async history(query: { callsign?: string; reg?: string }) { await this.ready; return this.service.history(query); }
 
   private async persist() {
     const json = JSON.stringify(this.service.store.snapshot());

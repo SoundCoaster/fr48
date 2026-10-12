@@ -22,7 +22,8 @@ function loadChunk(start: number): Promise<void> {
         setState({});
       })
       .catch(() => {
-        chunks.delete(start); // retry later
+        // Retry later, not on every tick (each request reads storage rows server-side)
+        setTimeout(() => chunks.delete(start), 30_000);
       });
     chunks.set(start, p);
   }

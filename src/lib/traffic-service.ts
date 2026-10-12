@@ -1,4 +1,4 @@
-import { airportDetail, airportRows, flightDetail, flightHistory, flightRows, logFromLeg, search } from "./derive";
+import { airportDetail, airportRows, flightDetail, flightRows, search } from "./derive";
 import { frameRows, MemoryHistory, type HistoryStore } from "./history";
 import { TrafficStore } from "./traffic-store";
 import type { VatsimFeed } from "./types";
@@ -32,13 +32,6 @@ export class TrafficService {
     await this.archive.put(t, frameRows(this.store));
   }
 
-  /** Persist legs that ended during the last ingest. */
-  private async recordLegs() {
-    if (!this.store.completed.length) return;
-    const legs = this.store.completed.splice(0);
-    await this.archive.putLegs(legs.map(logFromLeg));
-  }
-
   /** Each open flight panel polls every 15 s, so requests in the last 15 s ≈ viewers. */
   private viewers(): Map<string, number> {
     const cutoff = Date.now() - 16_000;
@@ -63,7 +56,6 @@ export class TrafficService {
         this.store.ingest(feed);
         this.lastFetch = Date.now();
         await this.recordFrame().catch((e) => console.error("history write failed", e));
-        await this.recordLegs().catch((e) => console.error("flight log write failed", e));
       } finally {
         this.inflight = null;
       }
@@ -120,15 +112,6 @@ export class TrafficService {
   async playback(from: number, minutes: number): Promise<string> {
     const frames = await this.archive.read(from, from + minutes * 60);
     return `{"frames":[${frames.map(([t, rows]) => `[${t},${rows}]`).join(",")}]}`;
-  }
-
-  /** Flight history for a callsign or a registration. */
-  async history(query: { callsign?: string; reg?: string }): Promise<string> {
-    await this.ensureFresh();
-    const callsign = query.callsign?.toUpperCase();
-    const reg = query.reg?.replace(/-/g, "").toUpperCase();
-    const logs = await this.archive.legs({ callsign, reg }, 200);
-    return JSON.stringify(flightHistory(this.store, logs, { callsign, reg: query.reg }));
   }
 
   async search(q: string): Promise<string> {

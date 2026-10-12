@@ -1,7 +1,7 @@
 import { aircraftInfo } from "@/data/aircraft";
 import { distanceNm } from "./geo";
 import { airlineByIcao, airlineFromCallsign, airport, allAirlines, allAirports } from "./refdata";
-import { legOf, TRAIL_STRIDE, type CompletedLeg, type TrafficStore, type Track } from "./traffic-store";
+import { TRAIL_STRIDE, type TrafficStore, type Track } from "./traffic-store";
 import type {
   Airline,
   Airport,
@@ -9,9 +9,6 @@ import type {
   AirportDetail,
   BoardEntry,
   FlightDetail,
-  FlightHistoryEntry,
-  FlightHistoryResponse,
-  FlightLog,
   FlightRow,
   FlightsResponse,
   FlightStatus,
@@ -465,67 +462,4 @@ export function search(store: TrafficStore, query: string): SearchResults {
     .slice(0, 5);
   res.airlines = exact ? [{ ...exact, live: live.get(exact.icao) ?? 0 }, ...airlines] : airlines;
   return res;
-}
-
-// ---- Flight history -------------------------------------------------------
-
-/** Turn a finished (or live) leg into a stored history record. */
-export function logFromLeg(leg: CompletedLeg): FlightLog {
-  const fp = leg.fp;
-  const ref = leg.takeoffAt ?? leg.firstSeen;
-  const std = fpTime(fp?.deptime, ref, fp?.remarks);
-  const enroute = durationS(fp?.enroute_time);
-  return {
-    callsign: leg.callsign,
-    reg: registration(fp?.remarks),
-    cid: leg.cid,
-    pilot: leg.pilot,
-    dep: fp?.departure || "",
-    arr: fp?.arrival || "",
-    type: fp?.aircraft_short || "",
-    std,
-    sta: std !== null && enroute ? std + enroute : null,
-    atd: leg.takeoffAt,
-    ata: leg.landedAt,
-    firstSeen: leg.firstSeen,
-    lastSeen: leg.lastSeen,
-    distanceNm: leg.distanceNm,
-    maxAlt: leg.maxAlt,
-  };
-}
-
-const normReg = (r: string) => r.replace(/-/g, "").toUpperCase();
-
-/** History for a callsign or a registration: live legs first, then recorded ones. */
-export function flightHistory(
-  store: TrafficStore,
-  logs: FlightLog[],
-  query: { callsign?: string; reg?: string },
-): FlightHistoryResponse {
-  const cs = query.callsign?.toUpperCase();
-  const reg = query.reg ? normReg(query.reg) : undefined;
-  const live: FlightLog[] = [];
-  for (const tr of store.tracks.values()) {
-    if (!tr.online) continue;
-    const log = logFromLeg(legOf(tr));
-    if ((cs && log.callsign === cs) || (reg && log.reg && normReg(log.reg) === reg)) live.push(log);
-  }
-  const toEntry = (l: FlightLog, isLive: boolean): FlightHistoryEntry => {
-    const airline = airlineFromCallsign(l.callsign);
-    return {
-      ...l,
-      live: isLive,
-      status: isLive ? "live" : l.ata !== null ? "landed" : "incomplete",
-      flightNumber: flightNumber(l.callsign, airline),
-      airline,
-      aircraftName: aircraftInfo(l.type).name,
-      origin: mini(airport(l.dep)),
-      destination: mini(airport(l.arr)),
-    };
-  };
-  return {
-    callsign: cs ?? null,
-    reg: query.reg?.toUpperCase() ?? null,
-    flights: [...live.map((l) => toEntry(l, true)), ...logs.map((l) => toEntry(l, false))],
-  };
 }
