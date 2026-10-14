@@ -14,6 +14,9 @@ import {
 } from "@/lib/client/store";
 import { ALTITUDE_STOPS, nf } from "@/lib/format";
 
+/** Right end of the altitude legend (m), just past the last colour stop. */
+const LEGEND_TOP_M = 13500;
+
 export function BottomBar() {
   const panel = useStore((s) => s.panel);
   const filters = useStore((s) => s.filters);
@@ -230,10 +233,17 @@ function WidgetsPanel() {
         </div>
         <div>
           <Label>Altitude legend</Label>
-          <div className="h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${ALTITUDE_STOPS.map(([, c]) => c).join(",")})` }} />
-          <div className="mt-1 flex justify-between text-[10px] text-fr-muted tabular">
-            {ALTITUDE_STOPS.map(([ft]) => (
-              <span key={ft}>{ft === 0 ? "0" : `${ft / 1000}k`}</span>
+          <div
+            className="h-2 rounded-full"
+            style={{
+              background: `linear-gradient(90deg, #ffffff 0%, ${ALTITUDE_STOPS.map(([m, c]) => `${c} ${(m / LEGEND_TOP_M) * 100}%`).join(",")}, #ff0000 100%)`,
+            }}
+          />
+          <div className="relative mt-1 h-3 text-[10px] text-fr-muted tabular">
+            {[0, 10000, 20000, 30000, 40000].map((ft) => (
+              <span key={ft} className="absolute -translate-x-1/2 first:translate-x-0" style={{ left: `${((ft * 0.3048) / LEGEND_TOP_M) * 100}%` }}>
+                {ft === 0 ? "0" : `${ft / 1000}k ft`}
+              </span>
             ))}
           </div>
         </div>

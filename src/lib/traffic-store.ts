@@ -1,3 +1,4 @@
+import { GROUND_SPEED_KT } from "./constants";
 import { angleDiff, distanceNm } from "./geo";
 import type { VatsimController, VatsimFeed, VatsimFlightPlan, VatsimPrefile } from "./types";
 
@@ -6,7 +7,6 @@ export const TRAIL_STRIDE = 6;
 const MAX_TRAIL_POINTS = 3000;
 /** How long a disconnected flight is kept so a reconnect can resume its track. */
 const RESUME_WINDOW_S = 30 * 60;
-const GROUND_SPEED_KT = 50;
 
 export interface Track {
   key: string;

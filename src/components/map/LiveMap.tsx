@@ -1,7 +1,7 @@
 "use client";
 
 import * as maplibregl from "maplibre-gl";
-import type { GeoJSONSource, Map as MLMap, SymbolLayerSpecification } from "maplibre-gl";
+import type { FilterSpecification, GeoJSONSource, LineLayerSpecification, Map as MLMap, SymbolLayerSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
@@ -15,7 +15,8 @@ import { GoogleAttribution } from "./GoogleAttribution";
 import { isDarkStyle, resolveStyle, STYLES } from "./styles";
 import { useAirportRows, useFlightDetail, type AirportRow } from "@/lib/client/data";
 import { getState, setState, subscribe, useStore, type Filters } from "@/lib/client/store";
-import { altitudeColor } from "@/lib/format";
+import { altitudeColor, fmtAltitude, fmtSpeed } from "@/lib/format";
+import { GROUND_SPEED_KT } from "@/lib/constants";
 import { distanceNm, greatCircle, unwrap } from "@/lib/geo";
 import type { FlightDetail, FlightRow } from "@/lib/types";
 
@@ -83,6 +84,8 @@ function installLayers(map: MLMap) {
   map.addSource("airports", { type: "geojson", data: EMPTY });
   map.addSource("route", { type: "geojson", data: EMPTY });
   map.addSource("trail", { type: "geojson", data: EMPTY });
+  map.addSource("trail-live", { type: "geojson", data: EMPTY });
+  map.addSource("trail-points", { type: "geojson", data: EMPTY });
   map.addSource("trail-gap", { type: "geojson", data: EMPTY });
   map.addSource("flights", { type: "geojson", data: EMPTY });
 
@@ -107,12 +110,36 @@ function installLayers(map: MLMap) {
     layout: { "line-cap": "round" },
     paint: { "line-color": isDark ? "#e4e9ee" : "#4a5560", "line-opacity": 0.75, "line-width": 2, "line-dasharray": [0.8, 2] },
   });
+  // No reception for over TRAIL_GAP_S: thin black dotted line, like FR24
   map.addLayer({
-    id: "trail",
+    id: "trail-nodata",
     type: "line",
     source: "trail",
+    filter: ["has", "gap"],
+    paint: { "line-color": "#000000", "line-width": 1, "line-dasharray": [2, 2] },
+  });
+  const trailLine = (id: string, source: string, filter?: FilterSpecification): LineLayerSpecification => ({
+    id,
+    type: "line",
+    source,
+    ...(filter && { filter }),
     layout: { "line-cap": "round", "line-join": "round" },
-    paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 3, 2.5, 10, 4] },
+    paint: { "line-color": ["get", "c"], "line-width": 3 },
+  });
+  map.addLayer(trailLine("trail", "trail", ["!", ["has", "gap"]]));
+  map.addLayer(trailLine("trail-live", "trail-live"));
+  // One dot per recorded position; a wider invisible circle makes them easy to hover
+  map.addLayer({
+    id: "trail-points",
+    type: "circle",
+    source: "trail-points",
+    paint: { "circle-radius": 1.5, "circle-color": ["get", "c"] },
+  });
+  map.addLayer({
+    id: "trail-points-hit",
+    type: "circle",
+    source: "trail-points",
+    paint: { "circle-radius": 6, "circle-opacity": 0 },
   });
   const pinLayout = {
     "icon-anchor": "bottom",
@@ -265,28 +292,55 @@ function matches(f: FlightRow, flt: Filters): boolean {
   return true;
 }
 
-function trailFeatures(detail: FlightDetail, live: Display | undefined, upTo = Infinity): GeoJSON.Feature[] {
-  // Aircraft are drawn slightly in the past: don't let the trail run ahead of the icon
-  const pts = detail.trail.filter((p) => p[4] <= upTo);
-  const feats: GeoJSON.Feature[] = [];
-  if (!pts.length) return feats;
-  let color = altitudeColor(pts[0][2]);
+/** Two recorded positions further apart than this (s) mean the feed had no position in between. */
+const TRAIL_GAP_S = 120;
+
+interface TrailGeometry {
+  lines: GeoJSON.Feature[];
+  points: GeoJSON.Feature[];
+  /** Last drawn position, where the live segment to the aircraft starts. */
+  last: { lon: number; lat: number; c: string } | null;
+}
+
+/** Recorded trail as altitude-coloured segments, dotted no-reception gaps and position dots. */
+function trailGeometry(pts: FlightDetail["trail"]): TrailGeometry {
+  const lines: GeoJSON.Feature[] = [];
+  const points: GeoJSON.Feature[] = [];
+  if (!pts.length) return { lines, points, last: null };
+  const colorOf = (p: FlightDetail["trail"][number]) => altitudeColor(p[2], p[3] < GROUND_SPEED_KT);
+  const line = (coords: [number, number][], props: Record<string, unknown>) =>
+    lines.push({ type: "Feature", properties: props, geometry: { type: "LineString", coordinates: coords } });
   let prevLon = pts[0][0];
+  let color = colorOf(pts[0]);
   let coords: [number, number][] = [[pts[0][0], pts[0][1]]];
-  for (let i = 1; i < pts.length; i++) {
-    const lon = unwrap(prevLon, pts[i][0]);
-    prevLon = lon;
-    coords.push([lon, pts[i][1]]);
-    const c = altitudeColor(pts[i][2]);
-    if (c !== color) {
-      feats.push({ type: "Feature", properties: { c: color }, geometry: { type: "LineString", coordinates: coords } });
-      coords = [[lon, pts[i][1]]];
-      color = c;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    const lon = i ? unwrap(prevLon, p[0]) : p[0];
+    const c = colorOf(p);
+    points.push({
+      type: "Feature",
+      properties: { c, t: p[4], alt: p[2], gs: p[3] },
+      geometry: { type: "Point", coordinates: [lon, p[1]] },
+    });
+    if (i) {
+      if (p[4] - pts[i - 1][4] > TRAIL_GAP_S) {
+        if (coords.length > 1) line(coords, { c: color });
+        line([coords[coords.length - 1], [lon, p[1]]], { gap: 1 });
+        coords = [[lon, p[1]]];
+      } else {
+        coords.push([lon, p[1]]);
+        // Colour changes at each point: close the segment there and start the next one
+        if (c !== color) {
+          line(coords, { c: color });
+          coords = [[lon, p[1]]];
+        }
+      }
     }
+    color = c;
+    prevLon = lon;
   }
-  if (live) coords.push([unwrap(prevLon, live.lon), live.lat]);
-  if (coords.length > 1) feats.push({ type: "Feature", properties: { c: color }, geometry: { type: "LineString", coordinates: coords } });
-  return feats;
+  if (coords.length > 1) line(coords, { c: color });
+  return { lines, points, last: { lon: prevLon, lat: pts[pts.length - 1][1], c: color } };
 }
 
 interface Props {
@@ -414,6 +468,24 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       hoverCs = null;
       map.setFilter("flights-hover", ["==", ["get", "cs"], ""]);
     });
+    // Trail dots: recorded time (UTC), speed and altitude
+    const pointTip = document.createElement("div");
+    pointTip.className = "fr-tooltip fr-trail-tip";
+    container.current!.appendChild(pointTip);
+    map.on("mousemove", "trail-points-hit", (e) => {
+      const f = e.features?.[0];
+      if (!f || f.geometry.type !== "Point") return;
+      const p = f.properties as { t: number; alt: number; gs: number };
+      const { altitudeUnit, speedUnit } = getState().settings;
+      const time = new Date(p.t * 1000).toISOString().slice(11, 19);
+      pointTip.textContent = `${time} UTC · ${fmtSpeed(p.gs, speedUnit)} · ${fmtAltitude(p.alt, altitudeUnit)}`;
+      const { x, y } = map.project(f.geometry.coordinates as [number, number]);
+      pointTip.style.transform = `translate(${x}px, ${y - 10}px) translate(-50%, -100%)`;
+      pointTip.style.opacity = "1";
+    });
+    map.on("mouseleave", "trail-points-hit", () => {
+      pointTip.style.opacity = "0";
+    });
     map.on("mousemove", "airports-pin", (e) => {
       const icao = e.features?.[0]?.properties.icao;
       if (!icao) return;
@@ -458,6 +530,9 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
 
     // ---- animation loop: dead-reckon every aircraft between feed updates
     let raf = 0;
+    let trailCache: { det: FlightDetail | null; count: number; src: GeoJSONSource | undefined; geo: TrailGeometry } = {
+      det: null, count: 0, src: undefined, geo: { lines: [], points: [], last: null },
+    };
     let lastPush = 0;
     let lastForce = -1;
     const frame = (now: number) => {
@@ -544,10 +619,26 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       const det = detailRef.current;
       const live = sel ? display.get(sel) : undefined;
       const trailSrc = map.getSource("trail") as GeoJSONSource | undefined;
+      const liveSrc = map.getSource("trail-live") as GeoJSONSource | undefined;
+      const pointSrc = map.getSource("trail-points") as GeoJSONSource | undefined;
       const routeSrc = map.getSource("route") as GeoJSONSource | undefined;
       const gapSrc = map.getSource("trail-gap") as GeoJSONSource | undefined;
       if (det && trailSrc && routeSrc) {
-        trailSrc.setData({ type: "FeatureCollection", features: trailFeatures(det, live, tr) });
+        // Aircraft are drawn slightly in the past: don't let the trail run ahead of the icon.
+        // The recorded part only changes when a point is passed; the segment to the icon every frame.
+        const n = det.trail.findIndex((p) => p[4] > tr);
+        const count = n < 0 ? det.trail.length : n;
+        if (trailCache.det !== det || trailCache.count !== count || trailCache.src !== trailSrc) {
+          trailCache = { det, count, src: trailSrc, geo: trailGeometry(det.trail.slice(0, count)) };
+          trailSrc.setData({ type: "FeatureCollection", features: trailCache.geo.lines });
+          pointSrc?.setData({ type: "FeatureCollection", features: trailCache.geo.points });
+        }
+        const last = trailCache.geo.last;
+        liveSrc?.setData(
+          last && live
+            ? { type: "Feature", properties: { c: last.c }, geometry: { type: "LineString", coordinates: [[last.lon, last.lat], [unwrap(last.lon, live.lon), live.lat]] } }
+            : EMPTY,
+        );
         // Trail starts away from the departure airport: draw the unknown part as estimated
         const known = det.trail.filter((p) => p[4] <= tr);
         const first = known[0] ? { lon: known[0][0], lat: known[0][1] } : live;
@@ -566,6 +657,9 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
         );
       } else {
         trailSrc?.setData(EMPTY);
+        liveSrc?.setData(EMPTY);
+        pointSrc?.setData(EMPTY);
+        trailCache = { det: null, count: 0, src: undefined, geo: { lines: [], points: [], last: null } };
         routeSrc?.setData(EMPTY);
         gapSrc?.setData(EMPTY);
       }

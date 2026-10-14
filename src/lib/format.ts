@@ -59,20 +59,43 @@ export function fmtVs(fpm: number, unit: "ft" | "m" = "ft"): string {
   return `${v > 0 ? "+" : ""}${nf.format(v)} fpm`;
 }
 
-/** Trail/altitude colour scale (feet → colour), shared by the map and the legend. */
+/**
+ * FR24 trail colour scale: altitude (metres) → colour, interpolated between stops.
+ * White on the ground or below 100 m, pure red above 13,000 m.
+ */
 export const ALTITUDE_STOPS: [number, string][] = [
-  [0, "#f5c400"],
-  [2000, "#c7d300"],
-  [6000, "#5fd35b"],
-  [12000, "#15c8a8"],
-  [20000, "#1d9ee6"],
-  [30000, "#4a5ef0"],
-  [40000, "#b23ce0"],
+  [100, "#ffe062"],
+  [400, "#ffea00"],
+  [700, "#ccff00"],
+  [1000, "#1eff00"],
+  [1700, "#00ff36"],
+  [2400, "#00ff9c"],
+  [3000, "#00ffe4"],
+  [4000, "#00c0ff"],
+  [5000, "#0078ff"],
+  [6000, "#0030ff"],
+  [7300, "#0000ff"],
+  [8700, "#3600ff"],
+  [10000, "#6000ff"],
+  [11000, "#9600ff"],
+  [12000, "#d800ff"],
+  [13000, "#ff00e4"],
 ];
 
-export function altitudeColor(ft: number): string {
-  for (let i = ALTITUDE_STOPS.length - 1; i >= 0; i--) if (ft >= ALTITUDE_STOPS[i][0]) return ALTITUDE_STOPS[i][1];
-  return ALTITUDE_STOPS[0][1];
+const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+
+export function altitudeColor(ft: number, onGround = false): string {
+  const m = ft * 0.3048;
+  if (onGround || m < ALTITUDE_STOPS[0][0]) return "#ffffff";
+  for (let i = 1; i < ALTITUDE_STOPS.length; i++) {
+    const [m1, c1] = ALTITUDE_STOPS[i];
+    if (m > m1) continue;
+    const [m0, c0] = ALTITUDE_STOPS[i - 1];
+    const k = (m - m0) / (m1 - m0);
+    const [a, b] = [rgb(c0), rgb(c1)];
+    return "#" + a.map((v, j) => Math.round(v + (b[j] - v) * k).toString(16).padStart(2, "0")).join("");
+  }
+  return "#ff0000";
 }
 
 export const STATUS_LABEL: Record<FlightStatus, string> = {
