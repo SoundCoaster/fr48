@@ -27,7 +27,7 @@ export function MapShell({ children }: { children: ReactNode }) {
   useLiveFlights();
 
   return (
-    <div className="h-dvh overflow-hidden">
+    <div className="fixed inset-0 overflow-hidden">
       <main className="relative h-full overflow-hidden">
         <Suspense fallback={<div className="absolute inset-0 bg-[#e9edf0]" />}>
           <SelectedMap />
