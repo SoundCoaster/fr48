@@ -35,13 +35,13 @@ export type Silhouette =
 /**
  * Relative on-map size of each icon family. The FR24 icons are drawn to a common
  * scale (an A380 nearly fills its canvas, a Cessna a third of it), so they all
- * render at 1; the older Santa sleigh image is half the resolution.
+ * render at 1; the Santa sleigh keeps its former on-map size.
  */
 export const SILHOUETTE_SCALE: Record<Silhouette, number> = {
   a380: 1, an225: 1, b747: 1, a340: 1, b707: 1, quad: 1, b777: 1, a350: 1, b787: 1, a330: 1,
   b767: 1, widebody: 1, beluga: 1, b757: 1, a321: 1, a320: 1, b737: 1, ejet: 1, rj: 1,
   bizjet: 1, turboprop: 1, twinprop: 1, hercules: 1, ga: 1, glider: 1, heli: 1, fighter: 1,
-  concorde: 1, balloon: 1, santa: 3.2,
+  concorde: 1, balloon: 1, santa: 1.28,
 };
 
 export const SILHOUETTES = Object.keys(SILHOUETTE_SCALE) as Silhouette[];

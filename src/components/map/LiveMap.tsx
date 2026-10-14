@@ -22,8 +22,8 @@ import type { FlightDetail, FlightRow } from "@/lib/types";
 // Bundlers break MapLibre's self-located worker; serve it from /public instead (see postinstall).
 maplibregl.setWorkerUrl("/maplibre-gl-worker.mjs");
 
-/** Aircraft PNGs are 256 px; at icon-size 1 they render as a 55 px slot. */
-const PLANE_RATIO = 256 / 55;
+/** Aircraft PNGs are 128 px; at icon-size 1 they render as a 55 px slot. */
+const PLANE_RATIO = 128 / 55;
 /** Airport pins are 112 px tall; at icon-size 1 they render 28 px tall. */
 const PIN_RATIO = 4;
 
