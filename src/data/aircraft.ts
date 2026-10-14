@@ -2,8 +2,10 @@
 /** Map icon family; each has /public/aircraft/{name}.png and {name}-sel.png. */
 export type Silhouette =
   | "a380"
+  | "an225"
   | "b747"
   | "a340"
+  | "b707"
   | "quad"
   | "b777"
   | "a350"
@@ -11,6 +13,7 @@ export type Silhouette =
   | "a330"
   | "b767"
   | "widebody"
+  | "beluga"
   | "b757"
   | "a321"
   | "a320"
@@ -20,19 +23,25 @@ export type Silhouette =
   | "bizjet"
   | "turboprop"
   | "twinprop"
+  | "hercules"
   | "ga"
   | "glider"
   | "heli"
   | "fighter"
+  | "concorde"
   | "balloon"
   | "santa";
 
-/** Relative on-map size of each icon family. */
+/**
+ * Relative on-map size of each icon family. The FR24 icons are drawn to a common
+ * scale (an A380 nearly fills its canvas, a Cessna a third of it), so they all
+ * render at 1; the older Santa sleigh image is half the resolution.
+ */
 export const SILHOUETTE_SCALE: Record<Silhouette, number> = {
-  a380: 1.25, b747: 1.2, a340: 1.12, quad: 0.95, b777: 1.15, a350: 1.12, b787: 1.08, a330: 1.1,
-  b767: 1.05, widebody: 1.08, b757: 0.95, a321: 0.92, a320: 0.88, b737: 0.88, ejet: 0.82, rj: 0.8,
-  bizjet: 0.72, turboprop: 0.82, twinprop: 0.7, ga: 0.62, glider: 0.66, heli: 0.66, fighter: 0.7,
-  balloon: 0.6, santa: 1.6,
+  a380: 1, an225: 1, b747: 1, a340: 1, b707: 1, quad: 1, b777: 1, a350: 1, b787: 1, a330: 1,
+  b767: 1, widebody: 1, beluga: 1, b757: 1, a321: 1, a320: 1, b737: 1, ejet: 1, rj: 1,
+  bizjet: 1, turboprop: 1, twinprop: 1, hercules: 1, ga: 1, glider: 1, heli: 1, fighter: 1,
+  concorde: 1, balloon: 1, santa: 3.2,
 };
 
 export const SILHOUETTES = Object.keys(SILHOUETTE_SCALE) as Silhouette[];
@@ -51,7 +60,7 @@ const T: Record<string, [string, Silhouette]> = {
   A310: ["Airbus A310", "widebody"],
   A332: ["Airbus A330-200", "a330"],
   A333: ["Airbus A330-300", "a330"],
-  A337: ["Airbus A330 Beluga XL", "a330"],
+  A337: ["Airbus A330 Beluga XL", "beluga"],
   A338: ["Airbus A330-800neo", "a330"],
   A339: ["Airbus A330-900neo", "a330"],
   A342: ["Airbus A340-200", "a340"],
@@ -61,8 +70,8 @@ const T: Record<string, [string, Silhouette]> = {
   A359: ["Airbus A350-900", "a350"],
   A35K: ["Airbus A350-1000", "a350"],
   A388: ["Airbus A380-800", "a380"],
-  A3ST: ["Airbus A300-600ST Beluga", "widebody"],
-  A400: ["Airbus A400M Atlas", "turboprop"],
+  A3ST: ["Airbus A300-600ST Beluga", "beluga"],
+  A400: ["Airbus A400M Atlas", "hercules"],
   BCS1: ["Airbus A220-100", "ejet"],
   BCS3: ["Airbus A220-300", "ejet"],
   // Boeing
@@ -81,6 +90,7 @@ const T: Record<string, [string, Silhouette]> = {
   B38M: ["Boeing 737 MAX 8", "b737"],
   B39M: ["Boeing 737 MAX 9", "b737"],
   B3XM: ["Boeing 737 MAX 10", "b737"],
+  B703: ["Boeing 707-320", "b707"],
   B741: ["Boeing 747-100", "b747"],
   B742: ["Boeing 747-200", "b747"],
   B743: ["Boeing 747-300", "b747"],
@@ -114,17 +124,17 @@ const T: Record<string, [string, Silhouette]> = {
   DC3: ["Douglas DC-3", "turboprop"],
   DC6: ["Douglas DC-6", "turboprop"],
   L101: ["Lockheed L-1011 TriStar", "widebody"],
-  CONC: ["Aérospatiale/BAC Concorde", "fighter"],
-  C130: ["Lockheed C-130 Hercules", "turboprop"],
-  C30J: ["Lockheed Martin C-130J Super Hercules", "turboprop"],
+  CONC: ["Aérospatiale/BAC Concorde", "concorde"],
+  C130: ["Lockheed C-130 Hercules", "hercules"],
+  C30J: ["Lockheed Martin C-130J Super Hercules", "hercules"],
   C17: ["Boeing C-17 Globemaster III", "b747"],
   C5M: ["Lockheed C-5M Super Galaxy", "b747"],
-  K35R: ["Boeing KC-135R Stratotanker", "quad"],
+  K35R: ["Boeing KC-135R Stratotanker", "b707"],
   KC2: ["Kawasaki C-2", "a330"],
-  E3TF: ["Boeing E-3 Sentry", "quad"],
-  AN12: ["Antonov An-12", "turboprop"],
+  E3TF: ["Boeing E-3 Sentry", "b707"],
+  AN12: ["Antonov An-12", "hercules"],
   A124: ["Antonov An-124 Ruslan", "b747"],
-  A225: ["Antonov An-225 Mriya", "b747"],
+  A225: ["Antonov An-225 Mriya", "an225"],
   IL76: ["Ilyushin Il-76", "b747"],
   IL96: ["Ilyushin Il-96", "b747"],
   T154: ["Tupolev Tu-154", "rj"],

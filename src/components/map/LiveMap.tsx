@@ -22,10 +22,13 @@ import type { FlightDetail, FlightRow } from "@/lib/types";
 // Bundlers break MapLibre's self-located worker; serve it from /public instead (see postinstall).
 maplibregl.setWorkerUrl("/maplibre-gl-worker.mjs");
 
-/** Aircraft PNGs are 128 px; at icon-size 1 they render as a 44 px slot. */
-const PLANE_RATIO = 128 / 44;
+/** Aircraft PNGs are 256 px; at icon-size 1 they render as a 55 px slot. */
+const PLANE_RATIO = 256 / 55;
 /** Airport pins are 112 px tall; at icon-size 1 they render 28 px tall. */
 const PIN_RATIO = 4;
+
+/** Hijack, radio failure, general emergency: drawn in pure red like FR24. */
+const EMERGENCY_SQUAWKS = new Set(["7500", "7600", "7700"]);
 
 const imageCache = new Map<string, Promise<HTMLImageElement>>();
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -52,6 +55,7 @@ function addImages(map: MLMap) {
     entries.push(
       [`plane-${s}`, `/aircraft/${s}.png`, PLANE_RATIO],
       [`plane-${s}-sel`, `/aircraft/${s}-sel.png`, PLANE_RATIO],
+      [`plane-${s}-emg`, `/aircraft/${s}-emg.png`, PLANE_RATIO],
       [`shadow-${s}`, `/aircraft/${s}-shadow.png`, PLANE_RATIO],
     );
   }
@@ -166,7 +170,11 @@ function installLayers(map: MLMap) {
     source: "flights",
     layout: {
       ...planeIcon,
-      "icon-image": ["concat", "plane-", ["get", "s"], ["case", ["==", ["get", "sel"], 1], "-sel", ""]],
+      // FR24 colours: selected first, then emergency squawk, then the default yellow
+      "icon-image": [
+        "concat", "plane-", ["get", "s"],
+        ["case", ["==", ["get", "sel"], 1], "-sel", ["==", ["get", "emg"], 1], "-emg", ""],
+      ],
       "symbol-sort-key": ["get", "sel"],
       "text-field": ["get", "lbl"],
       "text-font": ["Montserrat Medium", "Open Sans Bold", "Noto Sans Regular"],
@@ -502,7 +510,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
       const seen = new Set<string>();
 
       for (const f of rows) {
-        const [cs, lat, lon, hdg, alt, , type, dep, arr, , , ground, rowSil] = f;
+        const [cs, lat, lon, hdg, alt, , type, dep, arr, squawk, , ground, rowSil] = f;
         const sil: Silhouette = cs.startsWith("SANTA") ? "santa" : (rowSil as Silhouette);
         const isSel = cs === sel;
         if (!isSel && !matches(f, st.filters)) continue;
@@ -519,6 +527,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
             s: sil,
             h: d.hdg,
             sel: isSel ? 1 : 0,
+            emg: EMERGENCY_SQUAWKS.has(squawk) ? 1 : 0,
             k: (SILHOUETTE_SCALE[sil] ?? 1) * (isSel ? k * 1.1 : k),
             t: type,
             r: dep && arr ? `${dep} → ${arr}` : "",
