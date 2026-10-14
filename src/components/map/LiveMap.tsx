@@ -17,7 +17,7 @@ import { useAirportRows, useFlightDetail, type AirportRow } from "@/lib/client/d
 import { getState, setState, subscribe, useStore, type Filters } from "@/lib/client/store";
 import { altitudeColor, fmtAltitude, fmtSpeed } from "@/lib/format";
 import { GROUND_SPEED_KT } from "@/lib/constants";
-import { distanceNm, greatCircle, unwrap } from "@/lib/geo";
+import { distanceNm, greatArc, greatCircle, unwrap } from "@/lib/geo";
 import type { FlightDetail, FlightRow } from "@/lib/types";
 
 // Bundlers break MapLibre's self-located worker; serve it from /public instead (see postinstall).
@@ -302,8 +302,17 @@ interface TrailGeometry {
   last: { lon: number; lat: number; c: string } | null;
 }
 
+/**
+ * Points added between two recorded positions, along the great circle, so long
+ * hops don't show as straight chords on the map (FR24: up to 25, or 50 from zoom 10,
+ * in proportion to the time between them, full at 1000 s).
+ */
+function arcSteps(dt: number, fine: boolean): number {
+  return Math.floor((fine ? 50 : 25) * Math.min(1, dt / 1000));
+}
+
 /** Recorded trail as altitude-coloured segments, dotted no-reception gaps and position dots. */
-function trailGeometry(pts: FlightDetail["trail"]): TrailGeometry {
+function trailGeometry(pts: FlightDetail["trail"], fine: boolean): TrailGeometry {
   const lines: GeoJSON.Feature[] = [];
   const points: GeoJSON.Feature[] = [];
   if (!pts.length) return { lines, points, last: null };
@@ -323,12 +332,14 @@ function trailGeometry(pts: FlightDetail["trail"]): TrailGeometry {
       geometry: { type: "Point", coordinates: [lon, p[1]] },
     });
     if (i) {
-      if (p[4] - pts[i - 1][4] > TRAIL_GAP_S) {
+      const dt = p[4] - pts[i - 1][4];
+      const arc = greatArc(pts[i - 1][1], prevLon, p[1], lon, arcSteps(dt, fine) + 1).slice(1);
+      if (dt > TRAIL_GAP_S) {
         if (coords.length > 1) line(coords, { c: color });
-        line([coords[coords.length - 1], [lon, p[1]]], { gap: 1 });
+        line([coords[coords.length - 1], ...arc], { gap: 1 });
         coords = [[lon, p[1]]];
       } else {
-        coords.push([lon, p[1]]);
+        coords.push(...arc);
         // Colour changes at each point: close the segment there and start the next one
         if (c !== color) {
           line(coords, { c: color });
@@ -530,8 +541,8 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
 
     // ---- animation loop: dead-reckon every aircraft between feed updates
     let raf = 0;
-    let trailCache: { det: FlightDetail | null; count: number; src: GeoJSONSource | undefined; geo: TrailGeometry } = {
-      det: null, count: 0, src: undefined, geo: { lines: [], points: [], last: null },
+    let trailCache: { det: FlightDetail | null; count: number; src: GeoJSONSource | undefined; fine: boolean; geo: TrailGeometry } = {
+      det: null, count: 0, src: undefined, fine: false, geo: { lines: [], points: [], last: null },
     };
     let lastPush = 0;
     let lastForce = -1;
@@ -628,8 +639,9 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
         // The recorded part only changes when a point is passed; the segment to the icon every frame.
         const n = det.trail.findIndex((p) => p[4] > tr);
         const count = n < 0 ? det.trail.length : n;
-        if (trailCache.det !== det || trailCache.count !== count || trailCache.src !== trailSrc) {
-          trailCache = { det, count, src: trailSrc, geo: trailGeometry(det.trail.slice(0, count)) };
+        const fine = zoom >= 10;
+        if (trailCache.det !== det || trailCache.count !== count || trailCache.src !== trailSrc || trailCache.fine !== fine) {
+          trailCache = { det, count, src: trailSrc, fine, geo: trailGeometry(det.trail.slice(0, count), fine) };
           trailSrc.setData({ type: "FeatureCollection", features: trailCache.geo.lines });
           pointSrc?.setData({ type: "FeatureCollection", features: trailCache.geo.points });
         }
@@ -659,7 +671,7 @@ export default function LiveMap({ selected, selectedAirport }: Props) {
         trailSrc?.setData(EMPTY);
         liveSrc?.setData(EMPTY);
         pointSrc?.setData(EMPTY);
-        trailCache = { det: null, count: 0, src: undefined, geo: { lines: [], points: [], last: null } };
+        trailCache = { det: null, count: 0, src: undefined, fine: false, geo: { lines: [], points: [], last: null } };
         routeSrc?.setData(EMPTY);
         gapSrc?.setData(EMPTY);
       }

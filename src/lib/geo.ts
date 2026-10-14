@@ -35,8 +35,12 @@ export function destination(lat: number, lon: number, brg: number, distNm: numbe
  * MapLibre draws the short way across the antimeridian.
  */
 export function greatCircle(lat1: number, lon1: number, lat2: number, lon2: number, maxStepNm = 50): [number, number][] {
+  return greatArc(lat1, lon1, lat2, lon2, Math.max(2, Math.ceil(distanceNm(lat1, lon1, lat2, lon2) / maxStepNm)));
+}
+
+/** `n + 1` [lon, lat] points (both ends included) evenly spaced along the great circle, longitudes unwrapped from lon1. */
+export function greatArc(lat1: number, lon1: number, lat2: number, lon2: number, n: number): [number, number][] {
   const total = distanceNm(lat1, lon1, lat2, lon2);
-  const n = Math.max(2, Math.ceil(total / maxStepNm));
   const p1 = toRad(lat1), l1 = toRad(lon1), p2 = toRad(lat2), l2 = toRad(lon2);
   const d = total / R_NM;
   const out: [number, number][] = [];
